@@ -1,9 +1,9 @@
 CC=gcc
-CFLAGS= -ansi -Wall -pedantic
+CFLAGS= -ansi -Wall -pedantic -g
 
 CFILES=queue.c shop.c
-HFILES=queue.h
-OFILES=queue.o shop.o
+HFILES=queue.h shop.h
+OFILES=queue.o shop.o 
 
 all:	shop
 
@@ -15,5 +15,4 @@ shop:	$(OFILES) $(HFILES)
 
 
 clean:	
-	rm -f *~ shop
-
+	rm -f *~ shop shop.o
