@@ -15,4 +15,4 @@ shop:	$(OFILES) $(HFILES)
 
 
 clean:	
-	rm -f *~ shop shop.o
+	rm -f *~ *.o shop
