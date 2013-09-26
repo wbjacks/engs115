@@ -1,7 +1,14 @@
-/*
- * qtest.c -- regression test for the queue module
- */
+/******************************************************************************/
+/*                                                                            */
+/* File: shop.c                                                               */
+/* Author: Will Jackson '14                                                   */
+/* Date: Sep 26, 2013                                                         */
+/*                                                                            */
+/* Uses a generic queue to make a user-interactive shopping list              */
+/*                                                                            */
+/******************************************************************************/
 
+/* Includes */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,7 +22,6 @@ public int main(int argc, char *argv[]) {
     Shopping_List_t *shopping_list;
     List_Entry_t *entry;
     char input[INPUT_BUFFER_LENGTH];
-    printf("hello there...\n");
 
     /* Open queue */
     shopping_list = (Shopping_List_t *)malloc(sizeof(Shopping_List_t));
@@ -70,6 +76,7 @@ public int main(int argc, char *argv[]) {
     return EXIT_SUCCESS;
 }
 
+/* Used to print out the list. This could be refactored with qapply */
 void printList(Shopping_List_t *sp) {
     int i;
     List_Entry_t *entry;
@@ -83,13 +90,15 @@ void printList(Shopping_List_t *sp) {
         /* Return entry to list... */
         qput(sp->qp, (void *)entry);
 
-        /* Yo there is a leak here ^^ because qget removes from the list without freeing */
+        /* Yo there is a leak here ^^ because qget removes from the list without
+            freeing */
     }
 }
 
+/* Used to deallocate the shopping list items */
 void clearList(Shopping_List_t *sp) {
-    /* qget returns NULL at empty list, which means Shopping_List_t isn't necessary */
-    /* And yes, I am keeping it because I am lazy. */
+    /* qget returns NULL at empty list, which means Shopping_List_t isn't
+       necessary And yes, I am keeping it because I am lazy. */
     List_Entry_t *entry;
 
     while ((entry = (List_Entry_t *)qget(sp->qp)) != NULL) {

@@ -1,9 +1,19 @@
-/* Unit tester for home-spun queue implimentation */
+/******************************************************************************/
+/*                                                                            */
+/* File: shop.c                                                               */
+/* Author: Will Jackson '14                                                   */
+/* Date: Sep 26, 2013                                                         */
+/*                                                                            */
+/* Unit tester for home-spun queue implimentation. This file is horrendously  */
+/* ugly and leaky, but that doesn't really matter becuase it's small.         */
+/*                                                                            */
+/******************************************************************************/
+/* Includes */
 #include <stdlib.h>
 #include <stdio.h>
 #include "./queue.h"
 
-
+/* Function prototypes */
 void printfn(void *pt);
 int searchfn(void *elementp, void *keyp);
 

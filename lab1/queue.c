@@ -1,14 +1,28 @@
+/******************************************************************************/
+/*                                                                            */
+/* File: queue.c                                                              */
+/* Author: Will Jackson '14                                                   */
+/* Date: Sep 26, 2013                                                         */
+/*                                                                            */
+/* Re-implementation of the queue code used in shop.c                         */
+/*                                                                            */
+/******************************************************************************/
+
+/* Includes */
 #include <stdlib.h>
 #include <string.h>
 #include "./queue.h"
 
+/* Structures */
+/* Queue will be implemented as a generic linked list, the inner workings of
+   which can't be seen outside of this file. That is, everything can be simply
+   controlled through the functions listed in queue.h */
 struct __queue_element {
     void *element;
     struct __queue_element *prev;
     struct __queue_element *next;
 
 };
-
 typedef struct __queue_element Queue_Element_t;
 
 struct __queue {
@@ -16,10 +30,8 @@ struct __queue {
     Queue_Element_t *last;
 
 };
-
 typedef struct __queue Queue_t;
 
-/* Queue will be implemented as a generic linked list */
 
 public void *qopen(void) {
     void *qp;
@@ -49,6 +61,7 @@ public void qput(void *qp, void *elementp) {
         ((Queue_t *)qp)->last = entry;        
 
     }
+    /* Common case */
     else {
         ((Queue_t *)qp)->last->next = entry;
         pt = ((Queue_t *)qp)->last;
@@ -136,6 +149,8 @@ public void *qremove(void *qp, int(*searchfn)(void *elementp, void *keyp),
 }
 
 public void qconcat(void *q1p, void *q2p) {
+    /* Just stiches things together. The header doesn't specify that I need to
+       deallocate q2p, so I won't. Might not be a terrible idea, though. */
     ((Queue_t *)q1p)->last->next = ((Queue_t *)q2p)->first;
     ((Queue_t *)q2p)->first->prev = ((Queue_t *)q1p)->last;
     ((Queue_t *)q1p)->last = ((Queue_t *)q2p)->last;
