@@ -1,7 +1,7 @@
-
 /* 
  * queue.h -- public interface to the queue module
  */
+
 #define public
 #define private static
 

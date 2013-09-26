@@ -68,7 +68,15 @@ public void* qget(void *qp) {
     ept = ((Queue_t *)qp)->first->element;
     pt = ((Queue_t *)qp)->first;
     ((Queue_t *)qp)->first = ((Queue_t *)qp)->first->next;
-    if (((Queue_t *)qp)->first != NULL) ((Queue_t *)qp)->first->prev = NULL;
+    if (((Queue_t *)qp)->first != NULL) {
+        ((Queue_t *)qp)->first->prev = NULL;
+
+    }
+    else {
+        /* Empty list  */
+        ((Queue_t *)qp)->last = NULL;
+
+    }
     free(pt);
     return ept;
 
@@ -78,7 +86,7 @@ public void qapply(void *qp, void (*fn)(void *elementp)) {
     Queue_Element_t *pt;
     pt = (Queue_Element_t *)((Queue_t *)qp)->first;
     while(pt != NULL) {
-        (*fn)(pt);
+        (*fn)(pt->element);
         pt = pt->next;
 
     }
@@ -95,7 +103,7 @@ public void *qsearch(void *qp, int (*searchfn)(void *elementp, void *keyp),
     Queue_Element_t *pt;
     pt = ((Queue_t *)qp)->first;
     while(pt != NULL) {
-        if (searchfn(pt, skeyp)) break;
+        if (searchfn(pt->element, skeyp)) break;
         pt = pt->next;
 
     }
@@ -109,6 +117,7 @@ public void *qremove(void *qp, int(*searchfn)(void *elementp, void *keyp),
 
     /* Get element to remove */
     pt = (Queue_Element_t *)qsearch(qp, searchfn, skeyp);
+    if (pt == NULL) return NULL;
 
     /* Remove element */
     if (pt == ((Queue_t*)qp)->last) {
