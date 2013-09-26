@@ -9,7 +9,7 @@
 #include "./queue.h"
 #include "./shop.h"
 
-public int main(int arcc, char *argv[]) {
+public int main(int argc, char *argv[]) {
     int c;
     char *pt;
     Shopping_List_t *shopping_list;
@@ -51,6 +51,9 @@ public int main(int arcc, char *argv[]) {
         /* Add to queue */
         qput(shopping_list->qp, (void *)entry);
         shopping_list->entry_count++;
+
+        if (argc > 1 && atoi(argv[1]) == shopping_list->entry_count)
+            printList(shopping_list);
 
     }
     /* Print entries */
