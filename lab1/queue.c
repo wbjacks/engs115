@@ -73,3 +73,62 @@ public void* qget(void *qp) {
     return ept;
 
 }
+
+public void qapply(void *qp, void (*fn)(void *elementp)) {
+    Queue_Element_t *pt;
+    pt = (Queue_Element_t *)((Queue_t *)qp)->first;
+    while(pt != NULL) {
+        (*fn)(pt);
+        pt = pt->next;
+
+    }
+}
+
+public void *qsearch(void *qp, int (*searchfn)(void *elementp, void *keyp),
+    void *skeyp)
+{
+    /* I am lazy and will be doing linear searching. I don't feel bad about 
+       this, however, because more than likely, a shopping list will be
+       a (relatively) small list of items, such that a n^2 algorithm will
+       not be noticeably slower than a nlog(n) algorithm. So there.
+    */
+    Queue_Element_t *pt;
+    pt = ((Queue_t *)qp)->first;
+    while(pt != NULL) {
+        if (searchfn(pt, skeyp)) break;
+        pt = pt->next;
+
+    }
+    return pt;
+}
+
+public void *qremove(void *qp, int(*searchfn)(void *elementp, void *keyp),
+    void *skeyp)
+{
+    Queue_Element_t *pt;
+
+    /* Get element to remove */
+    pt = (Queue_Element_t *)qsearch(qp, searchfn, skeyp);
+
+    /* Remove element */
+    if (pt == ((Queue_t*)qp)->last) {
+        ((Queue_t *)qp)->last = pt->prev;
+
+    }
+    pt->next->prev = pt->prev;
+
+    if (pt == ((Queue_t *)qp)->first) {
+        ((Queue_t *)qp)->first = pt->next;
+
+    }
+    pt->prev->next = pt->next;
+    return pt->element;
+
+}
+
+public void qconcat(void *q1p, void *q2p) {
+    ((Queue_t *)q1p)->last->next = ((Queue_t *)q2p)->first;
+    ((Queue_t *)q2p)->first->prev = ((Queue_t *)q1p)->last;
+    ((Queue_t *)q1p)->last = ((Queue_t *)q2p)->last;
+
+}
