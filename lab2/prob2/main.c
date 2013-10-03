@@ -1,4 +1,3 @@
-#include <pthread.h>
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -7,6 +6,8 @@
 int main(int argc, char *argv[]) {
     double a, b, p;
     int fn;
+    ThreadOutput_t out;
+
     if (argc == 5) {
         a = atof(argv[1]);
         b = atof(argv[2]);
@@ -19,5 +20,6 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
 
     }
-    printf("Value returned is: %f\n", m_integrate(fn, a, b, p, 10));
+    out = m_integrate(fn, a, b, p, 10);
+    printf("Value returned is: %f, depth is: %d\n", out.accumulator, out.section_count);
 }

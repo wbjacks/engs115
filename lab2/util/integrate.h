@@ -13,7 +13,6 @@ struct __thread_input {
     int func_number;
 
 };
-
 typedef struct __thread_input ThreadInput_t;
 
 
@@ -22,12 +21,12 @@ struct __thread_output {
     int section_count;
 
 };
-
 typedef struct __thread_output ThreadOutput_t;
 
 // Function prototypes
 
 double integrate(double (*fp)(double t), double a,
-    double b, double p, double f_sprev);
-double m_integrate(int func_number, int a, int b, double p, int m);
+    double b, double p, double f_sprev, int depth, int *final_depth);
+ThreadOutput_t m_integrate(int func_number, double a, double b, double p, int m);
+void *launcher(void *args);
 

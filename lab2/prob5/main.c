@@ -3,14 +3,13 @@
 #include <math.h>
 #include <string.h>
 
-#include "../util/integrate.h"
+#include "../util/generator.h"
 
 double func(double t);
 
 int main(int argc, char *argv[]) {
-    double result;
+    GeneratorOutput_t result;
     double a, b, p;
-    int depth_result;
     if (argc == 1) {
         a = 2.0;
         b = 4.0;
@@ -23,9 +22,8 @@ int main(int argc, char *argv[]) {
         p = atof(argv[3]);
 
     }
-    printf("Hello, world!\n");
-    result = integrate(func, a, b, p, 0, 0, &depth_result);
-    printf("Result is: %f, depth is: %d\n", result, depth_result);
+    result = generator(func, a, b, p, 10);
+    printf("Result is: %f", result.accumulator);
     return EXIT_SUCCESS;
 
 }
