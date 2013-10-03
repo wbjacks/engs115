@@ -38,4 +38,4 @@ p5: $(P5_OFILES) $(P5_HFILES)
 	$(CC) $(CFLAGS) $(P5_OFILES) -o $@ $(LOADERS)
 
 clean:
-	rm -f *~ .*.swp util/.*.swp $(OFILES) $(EXE)
+	rm -f *~ .*.swp util/.*.swp core $(OFILES) $(EXE)

@@ -9,7 +9,6 @@ static void *cruncher(void *args);
 GeneratorOutput_t output;
 pthread_mutex_t q_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t a_lock = PTHREAD_MUTEX_INITIALIZER;
-void *qp;
 
 // Generator lauches m threads that compute the integral
 // then, it begins to calculate a bunch of partitions to solve and enqueues them
@@ -18,26 +17,34 @@ void *qp;
 GeneratorOutput_t generator(double (*fp)(double t), double a, double b, double p, int m) {
     int i;
     void *status;
+    ThreadQueue_t *tqp;
+    tqp = (ThreadQueue_t *)malloc(sizeof(ThreadQueue_t));
+    tqp->qp = qopen();
     // Create threads
     pthread_t threads[m+1]; 
-    CalculatorInput_t c_in;
+    CalculatorInput_t ca_in;
+    CruncherInput_t cr_in[m];
 
     // Launch all threads
     // First, launch calculator thread
     output.calc_complete = false;
-    c_in.start = a;
-    c_in.end = b;
-    c_in.m = m;
-    c_in.fp = fp;
-    pthread_create(&threads[0], NULL, calculator, &c_in);
+    ca_in.start = a;
+    ca_in.end = b;
+    ca_in.m = m;
+    ca_in.p = p;
+    ca_in.fp = fp;
+    ca_in.queue = tqp;
+    pthread_create(&threads[0], NULL, calculator, &ca_in);
 
     // Then, launch and detach cruncher threads
     for (i = 1; i <= m; i++) {
-        pthread_create(&threads[0], NULL, cruncher, NULL);
+        cr_in[i-1].queue = tqp;
+        pthread_create(&threads[i], NULL, cruncher, &cr_in[i-1]);
 
     }
-    // Wait for calculator to return
-    pthread_join(threads[0], &status);
+    // Wait for all to return
+    for (i = 0; i <= m; i++)
+        pthread_join(threads[i], &status);
 
     // Cleanup and return
     return output;
@@ -50,7 +57,7 @@ static void *calculator(void *args) {
     QueueElement_t *elements[input->m * PARTITION_MULTIPLIER];
 
     // Create queue
-    qp = qopen();
+    //qp = qopen();
     
     // Queue loop
     for (i = 0; i < (input->m * PARTITION_MULTIPLIER); i++) {
@@ -60,9 +67,18 @@ static void *calculator(void *args) {
         elements[i]->b = input->start
             + (i+1) * ((input->end - input->start) / (input->m * PARTITION_MULTIPLIER));
         elements[i]->fp = input->fp;
+        elements[i]->p = input->p;
+
+        // CRITICAL SECTION
+        pthread_mutex_lock(&q_lock);
+        qput(input->queue->qp, (void *)elements[i]);
+        input->queue->num_elements++;
+        pthread_mutex_unlock(&q_lock);
+        //printf("Item %d placed in queue\n", i);
+        //fflush(stdout);
+        // END CRITICAL SECTION
 
     }
-
     // Set calculator complete
     output.calc_complete = true;
 
@@ -76,15 +92,28 @@ static void *cruncher(void *args) {
     double val;
     int f_depth;
     QueueElement_t *qe;
+    CruncherInput_t *input = (CruncherInput_t *)args;
     // Wait loop
-    while (!output.calc_complete && !isEmpty(qp)) {
+    while (!(output.calc_complete && !input->queue->num_elements)) {
         // CRITICAL SECTION
         // Grab element
         pthread_mutex_lock(&q_lock);
-        qe = (QueueElement_t *)qget(qp);
-        pthread_mutex_unlock(&q_lock);
+        qe = (QueueElement_t *)qget(input->queue->qp);
         // END CRITICAL SECTION
 
+        if (qe == NULL) {
+            pthread_mutex_unlock(&q_lock);
+            sleep(CRUNCHER_WAIT_TIME);
+            continue;
+
+        }
+        else {
+            input->queue->num_elements--;
+            //printf("Item taken from queue, queue now holds %d\n", input->queue->num_elements);
+            //fflush(stdout);
+            pthread_mutex_unlock(&q_lock);
+
+        }
         // Crunch division
         val = integrate(qe->fp, qe->a, qe->b, qe->p, 0, 0, &f_depth);
         

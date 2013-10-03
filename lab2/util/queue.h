@@ -33,6 +33,3 @@ public void* qremove(void *qp,
 
 /* concatenatenates q2 onto q1, q2 may not be subsequently used */
 public void qconcat(void *q1p, void *q2p);
-
-// Added for use in threading assignment
-public bool isEmpty(void *qp);
