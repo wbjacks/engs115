@@ -5,7 +5,7 @@
 
 #include "../util/generator.h"
 
-double func(double t);
+static double func(double t);
 
 int main(int argc, char *argv[]) {
     GeneratorOutput_t result;
@@ -23,13 +23,20 @@ int main(int argc, char *argv[]) {
 
     }
     result = generator(func, a, b, p, 10);
-    printf("Result is: %f", result.accumulator);
+    printf("Result is: %f, with depth: %li\n", result.accumulator, result.depth);
     return EXIT_SUCCESS;
 
 }
 
 // F(t) = t^3
-double func(double t) {
+/*
+static double func(double t) {
     return t*t*t;
+
+}
+*/
+
+static double func(double t) {
+    return 2*t*t + 9*t + 4;
 
 }

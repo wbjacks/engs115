@@ -28,6 +28,8 @@ GeneratorOutput_t generator(double (*fp)(double t), double a, double b, double p
     // Launch all threads
     // First, launch calculator thread
     output.calc_complete = false;
+    output.depth = 0;
+    output.accumulator = 0.0;
     ca_in.start = a;
     ca_in.end = b;
     ca_in.m = m;
@@ -122,6 +124,7 @@ static void *cruncher(void *args) {
         // CRITICAL SECTION
         // Add result to accumulator
         output.accumulator += val;
+        output.depth += f_depth;
         pthread_mutex_unlock(&a_lock);
         // END CRITICAL SECTION
     }

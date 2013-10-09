@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS= -std=c99 -Wall -pedantic -ggdb -pthread
+CFLAGS= -std=c99 -Wall -pedantic -ggdb -pthread -Ofast
 LOADERS=-lm
 EXE=p1 p2 p5
 

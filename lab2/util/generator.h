@@ -31,6 +31,7 @@ typedef struct __queue_element QueueElement_t;
 // Global output
 struct __generator_output {
     double accumulator;
+    unsigned long depth;
     bool calc_complete;
 
 };
