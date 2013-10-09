@@ -8,25 +8,31 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <errno.h>
+#include <unistd.h>
 
 // Defines
 #define LISTEN_BACKLOG 15
-#define MAX_MSG_LENGTH 1000
+#define MAX_MSG_LENGTH 100
 
 int main(int argc, char *argv[]) {
-    int sockfd, connected_sockfd;
+    int sockfd;
     int status;
-    char msg[MAX_MSG_LENGTH]
+    char msg[MAX_MSG_LENGTH];
     struct addrinfo hints;
     struct addrinfo *info;
-    struct sockaddr_storage incoming_addr;
-    socklen_t incoming_addr_size;
+    struct sockaddr_storage incoming_ip;
+    socklen_t incoming_ip_len;
 
+    if (argc != 2) {
+        fprintf(stderr, "Improper number of arguments. Exiting...\n");
+        return EXIT_FAILURE;
+
+    }
     /* Get info */
     memset(&hints, 0, sizeof(struct addrinfo));
-    hints.ai_family = AF_UNSPEC;     // don't care IPv4 or IPv6
-    hints.ai_socktype = SOCK_STREAM; // TCP stream sockets
-    hints.ai_flags = AI_PASSIVE;     // fill in my IP for me
+    hints.ai_family = AF_UNSPEC;        // don't care IPv4 or IPv6
+    hints.ai_socktype = SOCK_DGRAM; // UDP datagram sockets
+    hints.ai_flags = AI_PASSIVE;      // fill in my IP for me
 
     if ((status = getaddrinfo(NULL, argv[1], &hints, &info)) != 0) {
         fprintf(stderr, "Error: Problem retrieving address information of input.\n");
@@ -35,35 +41,45 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
 
     }
-
     /* Create socket */
-    sockfd = socket(info->ai_family, info->ai_socktype, info->ai_protocol);
-    bind(sockfd, info->ai_addr, info->ai_addrlen);
-
-    /* Listen for incoming packets */
-    if (listen(sockfd, LISTEN_BACKLOG) == -1) {
-        fprintf(stderr, "Error: Listen failed.\n");
+    if ((sockfd = socket(info->ai_family, info->ai_socktype, info->ai_protocol))
+         == -1)
+    {
+        fprintf(stderr, "Error: Problem binding to socket.\n");
         fprintf(stderr, "Error is: %s.\n", strerror(errno));
         fprintf(stderr, "Exiting...\n");
         return EXIT_FAILURE;
-        
+
     }
-    incoming_addr_size = sizeof(socklen_t);
-    connected_sockfd = accept(sockfd, (struct sockaddr *)&incoming_addr, &incoming_addr_size);
-    
-    // Connected?
-    printf("Received connection...");
+    if (bind(sockfd, info->ai_addr, info->ai_addrlen) == -1) {
+        fprintf(stderr, "Error: Problem binding to socket.\n");
+        fprintf(stderr, "Error is: %s.\n", strerror(errno));
+        fprintf(stderr, "Exiting...\n");
+        return EXIT_FAILURE;
+
+    }
+    freeaddrinfo(info);
+    printf("Socket bound to: %d.\n", sockfd);
 
     /* UNG UNG WHUT UP MAYNE LUUUP */
     for (;;) {
-        recv(sockfd, ;
+        memset(msg, 0, MAX_MSG_LENGTH); 
+        incoming_ip_len = sizeof(incoming_ip);
+        if ((status = recvfrom(sockfd, msg, MAX_MSG_LENGTH-1, 0,
+            (struct sockaddr *)&incoming_ip, &incoming_ip_len)) == -1)
+        {
+            fprintf(stderr, "Error: Problem receiving.\n");
+            fprintf(stderr, "Error is: %s.\n", strerror(errno));
 
+        }
+        else {
+            msg[status] = '\0';
+            printf("Message received of length %d: %s.\n", status, msg);
+
+        }
     }
-
     /* Clean and exit */
     close(sockfd);
-    close(connected_sockfd);
-    freeaddrinfo(info);
     return EXIT_SUCCESS;
 
 }

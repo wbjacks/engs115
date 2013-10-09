@@ -8,17 +8,19 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <errno.h>
+#include <unistd.h>
 
 // Static function prototypes
-static char *get_message(void);
+static int get_message(char *pt);
 static void argument_help(void);
 
 int main(int argc, char *argv[]) {
     int sockfd;
     int status;
+    int input_len;
     struct addrinfo hints, *info;
-    char *input;
-    //struct sockaddr_in address;
+    //char *input = NULL;
+    char input[99];
 
     /* Get port input */
     // Check argument number
@@ -33,7 +35,7 @@ int main(int argc, char *argv[]) {
     // Prepare for getadddinfo
     memset(&hints, 0, sizeof(struct addrinfo));
     hints.ai_family = AF_UNSPEC;     // don't care IPv4 or IPv6
-    hints.ai_socktype = SOCK_STREAM; // TCP
+    hints.ai_socktype = SOCK_DGRAM; // UDP
 
     // Use ip, port to get address info
     if ((status = getaddrinfo(argv[1], argv[2], &hints, &info)) != 0) {
@@ -50,25 +52,31 @@ int main(int argc, char *argv[]) {
     // Open socket
     sockfd = socket(info->ai_family, info->ai_socktype, info->ai_protocol);
 
-    // Aaaand connect
-    if (connect(sockfd, info->ai_addr, info->ai_addrlen) == -1) {
-        fprintf(stderr, "Error: Connection failed.\n");
-        fprintf(stderr, "Error is: %s.\n", strerror(errno));
-        fprintf(stderr, "Exiting...\n");
-        return EXIT_FAILURE;
-
-    }
-
     /* Connection has succeeded, begin running things... */
-    printf("Connection success!\n");
+    printf("Connection success, socket is: %d.\n", sockfd);
 
     /* MAIN LOOP UP IN HUR */
     for(;;) {
         printf("Send string: ");
-        input = get_message();
+        //input_len = get_message(input);
+        scanf("%s", input);
+        input_len = strlen(input);
 
         // Send to socket
-        send(sockfd, input, sizeof input, 0);
+        if ((status = sendto(sockfd, input, (size_t)input_len, 0,
+            info->ai_addr, info->ai_addrlen)) == -1)
+        {
+            fprintf(stderr, "Error: Problem sending message.\n");
+            fprintf(stderr, "Error is: %s.\n", strerror(errno));
+
+        }
+        else {
+            printf("Success, %d characters sent.\n", status);
+
+        }
+
+        // Cleanup
+        //free(input);
 
     }
 
@@ -79,25 +87,25 @@ int main(int argc, char *argv[]) {
 
 }
 
-static char *get_message(void) {
-    int current_length = 0
+static int get_message(char *pt) {
+    int current_length = 0;
     int max_length = 180;
-    int realloc_size = max_size;
-    char *pt;
-    char c;
+    int realloc_size = max_length;
+    int c;
 
-    pt = malloc(max_length * sizeof char);
+    pt = (char *)malloc(max_length * sizeof(char));
 
     while ((c = getchar()) != '\n') {
-        pt[current_length++] = c;
+        pt[current_length++] = (char)c;
         if (current_length == (max_length - 2)) {
-            pt = realloc(pt, max_length + realloc_size)
+            pt = realloc(pt, max_length + realloc_size);
+            max_length += realloc_size;
 
         }
     }
     // Consider eating newlines?
-    pt[current_length] = '\0'
-    return pt;
+    pt[current_length++] = '\0';
+    return current_length;
 
 }
 
