@@ -10,17 +10,24 @@
 #include <errno.h>
 #include <unistd.h>
 
+#include "../util/user.h"
+
 // Static function prototypes
 static int get_message(char *pt);
 static void argument_help(void);
+
+static void send_ping(struct addrinfo *infoi, int socket);
+static void send_join(struct addrinfo *info);
+static void send_who(struct addrinfo *info);
+static void send_leave(struct addrinfo *info);
 
 int main(int argc, char *argv[]) {
     int sockfd;
     int status;
     int input_len;
-    struct addrinfo hints, *info;
-    //char *input = NULL;
     char input[99];
+    struct addrinfo hints, *info;
+    ChatUser_t *user;
 
     /* Get port input */
     // Check argument number
@@ -56,23 +63,25 @@ int main(int argc, char *argv[]) {
     printf("Connection success, socket is: %d.\n", sockfd);
 
     /* MAIN LOOP UP IN HUR */
+    user = create_user();
     for(;;) {
-        printf("Send string: ");
+        // Grab input
+        printf("%s$ ", user->alias);
         //input_len = get_message(input);
         scanf("%s", input);
         input_len = strlen(input);
 
-        // Send to socket
-        if ((status = sendto(sockfd, input, (size_t)input_len, 0,
-            info->ai_addr, info->ai_addrlen)) == -1)
-        {
-            fprintf(stderr, "Error: Problem sending message.\n");
-            fprintf(stderr, "Error is: %s.\n", strerror(errno));
+        // Check for commands
+        if (input[0] == '/') {
+            switch (input[1]) { // Since all of the commands begin with // different letters
+                case 'p': send_ping(info, sockfd); break;
+                case 'j': send_join(info); break;
+                case 'l': send_leave(info); break;
+                case 'w': send_who(info); break;
+                default:
+                    fprintf(stderr, "Command not recognized.\n");
 
-        }
-        else {
-            printf("Success, %d characters sent.\n", status);
-
+            }
         }
 
         // Cleanup
@@ -86,6 +95,47 @@ int main(int argc, char *argv[]) {
     return EXIT_SUCCESS;
 
 }
+
+static void send_ping(struct addrinfo *info, int socket) {
+    struct sockaddr_storage incoming_ip;
+    socklen_t incoming_ip_len;
+    char msg[5];
+    
+    if (sendto(socket, "ping", (size_t)5, 0,
+        info->ai_addr, info->ai_addrlen) == -1)
+    {
+        fprintf(stderr, "Error: Problem sending message.\n");
+        fprintf(stderr, "Error is: %s.\n", strerror(errno));
+    }
+    else {
+        // Wait for response from server
+        if (recvfrom(socket, msg, 5, 0,
+            (struct sockaddr *)&incoming_ip, &incoming_ip_len) == -1)
+        {
+            fprintf(stderr, "Error: Problem receiving.\n");
+            fprintf(stderr, "Error is: %s.\n", strerror(errno));
+            return;
+
+        }
+        // Message recieved, check for pong
+        if (!strncmp(msg, "pong", 4)) {
+            // Message matches, consider adding timing / ip display here
+            printf("Server is up!\n");
+
+        }
+        else {
+            // Maybe protect against message spamming here?
+            printf("Bad message recieved!\n");
+
+        }
+    }
+    return;
+
+}
+
+static void send_join(struct addrinfo *info) {}
+static void send_who(struct addrinfo *info) {}
+static void send_leave(struct addrinfo *info) {}
 
 static int get_message(char *pt) {
     int current_length = 0;
