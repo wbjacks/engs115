@@ -38,6 +38,10 @@ int main(int argc, char *argv[]) {
 
     }
 
+    // Create queues
+    msg_queue = pqopen();
+    task_queue = pqopen();
+
     // Launch receiver
     pthread_create(&rec_thread, NULL, receiver, (void *)info);
 
@@ -67,7 +71,8 @@ int main(int argc, char *argv[]) {
 static void *receiver(void *pt) {
     int bytes;
     char msg[MAX_MSG_LENGTH];
-    char *msg_element;
+    char *str_element;
+    MsgQueueElement_t *me_pt;
     struct addrinfo *info = (struct addrinfo *)pt;
     struct sockaddr_storage incoming_ip;
     socklen_t incoming_ip_len;
@@ -104,12 +109,20 @@ static void *receiver(void *pt) {
         else {
             msg[bytes] = '\0';
             printf("Message received of length %d: %s.\n", bytes, msg);
-            msg_element = malloc(sizeof(char) * strlen(msg));
-            strncpy(msg_element, msg, strlen(msg));
-            pqput(msg_queue, msg_element);
+            str_element = (char *)malloc(sizeof(char) * strlen(msg));
+            strncpy(str_element, msg, strlen(msg));
+
+            // Create MsgElement_t
+            me_pt = (MsgQueueElement_t *)malloc(sizeof(MsgQueueElement_t));
+            me_pt->str = str_element;
+            me_pt->src = incoming_ip; // Copy by value?
+            me_pt->src_len = incoming_ip_len;
+            pqput(msg_queue, (void *)me_pt);
 
         }
     }
+    return NULL;
+
 }
 
 /* Parser takes input message and parses it into command structures */
@@ -128,7 +141,7 @@ static void *parser(void *pt) {
         else {
             // Retrieved a message from the queue
             // Tokenize the message
-            tok = strtok(e_pt, ":");
+            tok = strtok(e_pt->str, ":");
             
             // Construct struct
             cc = (ChatCommand_t *)malloc(sizeof(ChatCommand_t));
@@ -138,7 +151,7 @@ static void *parser(void *pt) {
             // Switch on the token, fill in appropriate value
             if (!strncmp(tok, "msg", 3)) {
                 cc->type = CF_MSG;
-                cc->data = e_pt;
+                cc->data = e_pt->str;
 
             }
             else if (!strncmp(tok, "ping", 4)) {
@@ -166,10 +179,12 @@ static void *parser(void *pt) {
 
             }
             // Add to queue
-            if (cc) pqput(task_queue, cc);
+            if (cc) pqput(task_queue, (void *)cc);
                 
         }
     }
+    return NULL;
+
 }
 
 /* Dispatcher- Takes tasks from task queue */
@@ -179,7 +194,7 @@ static void *dispatcher(void *pt) {
 
     // Grab task from pqueue
     for (;;) {
-        cc = (char *)pqget(msg_queue);
+        cc = (ChatCommand_t *)pqget(task_queue);
         // Nothing in queue...
         if (!cc) {
             sleep(DISPATCHER_SLEEP_TIME);
@@ -202,18 +217,16 @@ static void *dispatcher(void *pt) {
                     fprintf(stderr, "This should not happen. PANIC.\n");
 
             }
-
-        // package msg
-        
-
             // send
-            if (sendto(sockfd, "ping", (size_t)5, 0,
-                &(cc->src), cc->src_len) == -1)
+            if (sendto(sockfd, msg, (size_t)5, 0,
+                (struct sockaddr *)&(cc->src), cc->src_len) == -1)
             {
                 fprintf(stderr, "Error: Problem sending message.\n");
                 fprintf(stderr, "Error is: %s.\n", strerror(errno));
             }
         }
     }
+    return NULL;
+
 }
 

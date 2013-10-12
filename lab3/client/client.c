@@ -13,7 +13,7 @@
 #include "../util/user.h"
 
 // Static function prototypes
-static int get_message(char *pt);
+//static int get_message(char *pt);
 static void argument_help(void);
 
 static void send_ping(struct addrinfo *infoi, int socket);
@@ -24,7 +24,6 @@ static void send_leave(struct addrinfo *info);
 int main(int argc, char *argv[]) {
     int sockfd;
     int status;
-    int input_len;
     char input[99];
     struct addrinfo hints, *info;
     ChatUser_t *user;
@@ -67,9 +66,11 @@ int main(int argc, char *argv[]) {
     for(;;) {
         // Grab input
         printf("%s$ ", user->alias);
-        //input_len = get_message(input);
-        scanf("%s", input);
-        input_len = strlen(input);
+        if ((status = scanf("%s", input)) == EOF) {
+            fprintf(stderr, "Error: Problem reading input.\n");
+            fprintf(stderr, "Error is: %s.\n", strerror(errno));
+
+        }
 
         // Check for commands
         if (input[0] == '/') {
@@ -125,7 +126,7 @@ static void send_ping(struct addrinfo *info, int socket) {
         }
         else {
             // Maybe protect against message spamming here?
-            printf("Bad message recieved!\n");
+            printf("Bad message recieved: %s!\n", msg);
 
         }
     }
@@ -137,6 +138,7 @@ static void send_join(struct addrinfo *info) {}
 static void send_who(struct addrinfo *info) {}
 static void send_leave(struct addrinfo *info) {}
 
+/*
 static int get_message(char *pt) {
     int current_length = 0;
     int max_length = 180;
@@ -158,6 +160,7 @@ static int get_message(char *pt) {
     return current_length;
 
 }
+*/
 
 static void argument_help(void) {
     printf("Arguments are:\n");
