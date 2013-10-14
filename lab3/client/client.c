@@ -12,19 +12,24 @@
 
 #include "../util/user.h"
 
+// Defines
+#define MAX_INPUT_LENGTH 100
+
 // Static function prototypes
-//static int get_message(char *pt);
+static char *get_message(void);
 static void argument_help(void);
 
-static void send_ping(struct addrinfo *infoi, int socket);
-static void send_join(struct addrinfo *info);
-static void send_who(struct addrinfo *info);
-static void send_leave(struct addrinfo *info);
+static void send_ping(struct addrinfo *info, int socket);
+static void send_join(struct addrinfo *info, int socket);
+static void send_who(struct addrinfo *info, int socket);
+static void send_leave(struct addrinfo *info, int socket);
 
 int main(int argc, char *argv[]) {
     int sockfd;
     int status;
-    char input[99];
+    //char input[MAX_INPUT_LENGTH];
+    char *input;
+    char msg[MAX_INPUT_LENGTH];
     struct addrinfo hints, *info;
     ChatUser_t *user;
 
@@ -65,26 +70,39 @@ int main(int argc, char *argv[]) {
     user = create_user();
     for(;;) {
         // Grab input
-        printf("%s$ ", user->alias);
+        printf("[%s]$ ", user->alias);
+        /*
         if ((status = scanf("%s", input)) == EOF) {
             fprintf(stderr, "Error: Problem reading input.\n");
             fprintf(stderr, "Error is: %s.\n", strerror(errno));
 
         }
+        */
+        input = get_message();
 
         // Check for commands
         if (input[0] == '/') {
             switch (input[1]) { // Since all of the commands begin with // different letters
                 case 'p': send_ping(info, sockfd); break;
-                case 'j': send_join(info); break;
-                case 'l': send_leave(info); break;
-                case 'w': send_who(info); break;
+                case 'j': send_join(info, sockfd); break;
+                case 'l': send_leave(info, sockfd); break;
+                case 'w': send_who(info, sockfd); break;
                 default:
                     fprintf(stderr, "Command not recognized.\n");
 
             }
         }
+        else {
+            // Chat message!
+            sprintf(msg, "msg:%s", input);
+            if (sendto(sockfd, msg, strlen(msg), 0,
+                info->ai_addr, info->ai_addrlen) == -1)
+            {
+                fprintf(stderr, "Error: Problem sending message.\n");
+                fprintf(stderr, "Error is: %s.\n", strerror(errno));
 
+            }
+        }
         // Cleanup
         //free(input);
 
@@ -110,6 +128,7 @@ static void send_ping(struct addrinfo *info, int socket) {
     }
     else {
         // Wait for response from server
+        memset(msg, 0, 5);
         if (recvfrom(socket, msg, 5, 0,
             (struct sockaddr *)&incoming_ip, &incoming_ip_len) == -1)
         {
@@ -134,16 +153,16 @@ static void send_ping(struct addrinfo *info, int socket) {
 
 }
 
-static void send_join(struct addrinfo *info) {}
-static void send_who(struct addrinfo *info) {}
-static void send_leave(struct addrinfo *info) {}
+static void send_join(struct addrinfo *info, int socket) {}
+static void send_who(struct addrinfo *info, int socket) {}
+static void send_leave(struct addrinfo *info, int socket) {}
 
-/*
-static int get_message(char *pt) {
+static char *get_message(void) {
     int current_length = 0;
     int max_length = 180;
     int realloc_size = max_length;
     int c;
+    char *pt;
 
     pt = (char *)malloc(max_length * sizeof(char));
 
@@ -157,10 +176,9 @@ static int get_message(char *pt) {
     }
     // Consider eating newlines?
     pt[current_length++] = '\0';
-    return current_length;
+    return pt;
 
 }
-*/
 
 static void argument_help(void) {
     printf("Arguments are:\n");

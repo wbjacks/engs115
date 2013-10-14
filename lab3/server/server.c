@@ -6,6 +6,9 @@ static void *receiver(void *pt);
 static void *parser(void *pt);
 static void *dispatcher(void *pt);
 
+static void disp_msg(void);
+static void disp_ping(ChatCommand_t *pt);
+
 // Globals
 void *msg_queue;
 void *task_queue;
@@ -204,9 +207,12 @@ static void *dispatcher(void *pt) {
             memset(msg, 0, MAX_MSG_LENGTH);
             // switch on tast type, package msg
             switch (cc->type) {
-                case CF_MSG: break;
+                case CF_MSG:
+                    printf("Chat message received!\n");
+                    break;
                 case CF_PING:
-                    strncpy(msg, "pong", 5);
+                    printf("Ping received!\n");
+                    disp_ping(cc);
                     break;
 
                 case CF_JOIN: break;
@@ -217,16 +223,18 @@ static void *dispatcher(void *pt) {
                     fprintf(stderr, "This should not happen. PANIC.\n");
 
             }
-            // send
-            if (sendto(sockfd, msg, (size_t)5, 0,
-                (struct sockaddr *)&(cc->src), cc->src_len) == -1)
-            {
-                fprintf(stderr, "Error: Problem sending message.\n");
-                fprintf(stderr, "Error is: %s.\n", strerror(errno));
-            }
         }
     }
     return NULL;
 
 }
 
+static void disp_msg(void) {}
+static void disp_ping(ChatCommand_t *pt) {
+    if (sendto(sockfd, "pong", (size_t)5, 0,
+        (struct sockaddr *)&(pt->src), pt->src_len) == -1)
+    {
+        fprintf(stderr, "Error: Problem sending message.\n");
+        fprintf(stderr, "Error is: %s.\n", strerror(errno));
+    }
+}
