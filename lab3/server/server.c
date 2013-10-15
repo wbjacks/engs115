@@ -9,6 +9,7 @@ static void *dispatcher(void *pt);
 //static void disp_msg(void);
 static void disp_ping(ChatCommand_t *pt);
 static void disp_join(ChatCommand_t *pt);
+static void disp_leave(ChatCommand_t *pt);
 
 static int find_user(void *ep, void *kp);
 
@@ -136,8 +137,9 @@ static void *receiver(void *pt) {
 /* Parser takes input message and parses it into command structures */
 static void *parser(void *pt) {
     MsgQueueElement_t *e_pt;
-    char *tok;
+    char *tok, *save_pt;
     ChatCommand_t *cc;
+    ChatUser_t *up;
 
     for (;;) {
         e_pt = (MsgQueueElement_t *)pqget(msg_queue);
@@ -149,7 +151,7 @@ static void *parser(void *pt) {
         else {
             // Retrieved a message from the queue
             // Tokenize the message
-            tok = strtok(e_pt->str, ":");
+            tok = strtok_r(e_pt->str, ":", &save_pt);
             
             // Construct struct
             cc = (ChatCommand_t *)malloc(sizeof(ChatCommand_t));
@@ -159,7 +161,7 @@ static void *parser(void *pt) {
             // Switch on the token, fill in appropriate value
             if (!strncmp(tok, "msg", 3)) {
                 cc->type = CF_MSG;
-                cc->data = e_pt->str;
+                cc->data = e_pt->str; // I'm pretty sure this is wrong
 
             }
             else if (!strncmp(tok, "ping", 4)) {
@@ -169,11 +171,21 @@ static void *parser(void *pt) {
             else if (!strncmp(tok, "join", 4)) {
                 cc->type = CF_JOIN;
                 // Construct a user object
+                tok = strtok_r(NULL, ":", &save_pt);
+                up = (ChatUser_t *)malloc(sizeof(ChatUser_t));
+                strncpy(up->alias, tok, strlen(tok));
+
+                tok = strtok_r(NULL, ":", &save_pt);
+                up->id = atoi(tok);
+                cc->data = up;
 
             }
             else if (!strncmp(tok, "leave", 5)) {
                 cc->type = CF_LEAVE;
                 // Data becomes user_id
+                cc->data = malloc(sizeof(int));
+                tok = strtok_r(NULL, ":", &save_pt);
+                *((int *)cc->data) = atoi(tok);
 
             }
             else if (!strncmp(tok, "who", 3)) {
@@ -242,7 +254,10 @@ static void *dispatcher(void *pt) {
                     printf("Join received!\n");
                     disp_join(cc);
                     break;
-                case CF_LEAVE: break;
+                case CF_LEAVE:
+                    printf("Leave received!\n");
+                    disp_leave(cc);
+                    break;
                 case CF_WHO: break;
                 default:
                     fprintf(stderr, "Error: Bad struct in task queue. ");
@@ -267,7 +282,6 @@ static void disp_ping(ChatCommand_t *pt) {
 
 static void disp_join(ChatCommand_t *pt) {
     // Check that user id doesn't already exist in room
-    
     if (!pqsearch(room->qp, find_user, &(((ChatUser_t *)pt->data)->id))) {
         // Add user to list
         pqput(room->qp, pt->data);
@@ -282,6 +296,23 @@ static void disp_join(ChatCommand_t *pt) {
     }
 }
 
+static void disp_leave(ChatCommand_t *pt) {
+    ChatUser_t *up;
+
+    // Remove user
+    up = (ChatUser_t *)pqremove(room->qp, find_user, &(((ChatUser_t *)pt->data)->id));
+    if (up) {
+        // Return REMOVE_OK message
+        if (sendto(sockfd, "REMOVE_OK", (size_t)10, 0,
+            (struct sockaddr *)&(pt->src), pt->src_len) == -1)
+        {
+            fprintf(stderr, "Error: Problem sending message.\n");
+            fprintf(stderr, "Error is: %s.\n", strerror(errno));
+        }
+    }
+}
+
+// Used for search
 static int find_user(void *ep, void *kp) {
     return ((ChatUser_t *)ep)->id == *((int *)kp);
 

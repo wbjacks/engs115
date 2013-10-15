@@ -137,13 +137,12 @@ public void *qremove(void *qp, int(*searchfn)(void *elementp, void *keyp),
         ((Queue_t *)qp)->last = pt->prev;
 
     }
-    pt->next->prev = pt->prev;
-
     if (pt == ((Queue_t *)qp)->first) {
         ((Queue_t *)qp)->first = pt->next;
 
     }
-    pt->prev->next = pt->next;
+    if (pt->next) pt->next->prev = pt->prev;
+    if (pt->prev) pt->prev->next = pt->next;
     return pt->element;
 
 }

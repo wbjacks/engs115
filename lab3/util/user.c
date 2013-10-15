@@ -16,6 +16,7 @@ ChatUser_t *create_user(void) {
     while ((c = fgetc(stdin)) != EOF && c != '\n') {}
     u = (ChatUser_t *)malloc(sizeof(ChatUser_t));
     strncpy(u->alias, input, 91);
+    u->id = (int)(MIN_USER_ID + (rand() / (double)RAND_MAX) * MAX_USER_ID);
     return u;
 
 }

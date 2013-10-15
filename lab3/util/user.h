@@ -13,6 +13,8 @@
 // Defines
 #define MAX_ALIAS_SIZE 91
 #define MAX_ROOM_NAME_SIZE 100
+#define MAX_USER_ID 999.0
+#define MIN_USER_ID 0.0
 
 // Structs
 struct __chat_user {
