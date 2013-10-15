@@ -10,8 +10,10 @@ static void *dispatcher(void *pt);
 static void disp_ping(ChatCommand_t *pt);
 static void disp_join(ChatCommand_t *pt);
 static void disp_leave(ChatCommand_t *pt);
+static void disp_who(ChatCommand_t *pt);
 
 static int find_user(void *ep, void *kp);
+static void *curried_sprintf(void *ep, void *acc);
 
 // Globals
 void *msg_queue;
@@ -190,6 +192,7 @@ static void *parser(void *pt) {
             }
             else if (!strncmp(tok, "who", 3)) {
                 cc->type = CF_WHO;
+                // Yayy no data
 
             }
             else {
@@ -254,11 +257,17 @@ static void *dispatcher(void *pt) {
                     printf("Join received!\n");
                     disp_join(cc);
                     break;
+
                 case CF_LEAVE:
                     printf("Leave received!\n");
                     disp_leave(cc);
                     break;
-                case CF_WHO: break;
+
+                case CF_WHO:
+                    printf("Who received!\n");
+                    disp_who(cc);
+                    break;
+
                 default:
                     fprintf(stderr, "Error: Bad struct in task queue. ");
                     fprintf(stderr, "This should not happen. PANIC.\n");
@@ -312,8 +321,35 @@ static void disp_leave(ChatCommand_t *pt) {
     }
 }
 
+static void disp_who(ChatCommand_t *pt) {
+    // Construct who string
+    char *who_str;
+    who_str = (char *)malloc(sizeof("WHO_OK:\n"));
+    strcpy(who_str, "WHO_OK:\n");
+    pqfold(room->qp, curried_sprintf, who_str);
+
+    // Send
+    if (sendto(sockfd, who_str, strlen(who_str)+1, 0,
+        (struct sockaddr *)&(pt->src), pt->src_len) == -1)
+    {
+        fprintf(stderr, "Error: Problem sending message.\n");
+        fprintf(stderr, "Error is: %s.\n", strerror(errno));
+    }
+}
+
 // Used for search
 static int find_user(void *ep, void *kp) {
     return ((ChatUser_t *)ep)->id == *((int *)kp);
+
+}
+
+// Used for disp_who()
+static void *curried_sprintf(void *ep, void *acc) {
+    char *str = (char *)acc;
+    char new_line[MAX_INPUT_LENGTH];
+
+    sprintf(new_line, "%s -> %d\n", ((ChatUser_t *)ep)->alias, ((ChatUser_t *)ep)->id);
+    str = (char *)realloc(str, strlen(str) + strlen(new_line) + 1);
+    return strcat(str, new_line);
 
 }

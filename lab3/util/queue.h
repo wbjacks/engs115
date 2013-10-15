@@ -31,6 +31,9 @@ public void* qsearch(void *qp,
 		     int (*searchfn)(void* elementp,void* keyp),
 		     void* skeyp);
 
+// Added by will: apply with a function that has an accumulator
+public void qfold(void *qp, void *(*fn)(void *elementp, void *accumulator), void *acc);
+
 /* search a queue using a supplied boolean function, removes an element */
 public void* qremove(void *qp,
 		     int (*searchfn)(void* elementp,void* keyp),

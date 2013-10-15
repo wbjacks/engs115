@@ -108,7 +108,7 @@ static void send_cmd(struct addrinfo *info, int socket, int type, ChatUser_t *up
     struct sockaddr_storage incoming_ip;
     socklen_t incoming_ip_len;
     char out_msg[MAX_INPUT_LENGTH];
-    char in_msg[10];
+    char in_msg[MAX_INPUT_LENGTH];
     char compare_msg[10];
     
     switch (type) {
@@ -124,6 +124,9 @@ static void send_cmd(struct addrinfo *info, int socket, int type, ChatUser_t *up
             sprintf(out_msg, "leave:%d", up->id);
             status = sendto(socket, out_msg, strlen(out_msg), 0, 
                 info->ai_addr, info->ai_addrlen);
+            break;
+        case CF_WHO:
+            status = sendto(socket, "who", 4, 0, info->ai_addr, info->ai_addrlen);
             break;
         default:
             fprintf(stderr, "Command not supported.\n");
@@ -141,8 +144,8 @@ static void send_cmd(struct addrinfo *info, int socket, int type, ChatUser_t *up
         for (;;) {
             memset(in_msg, 0, 5);
             memset(compare_msg, 0, 5);
-            status = recvfrom(socket, in_msg, 10, 0, (struct sockaddr *)&incoming_ip,
-                &incoming_ip_len);
+            status = recvfrom(socket, in_msg, MAX_INPUT_LENGTH, 0, 
+                (struct sockaddr *)&incoming_ip, &incoming_ip_len);
             switch (type) {
                 case CF_PING:
                     strcpy(compare_msg, "pong");
@@ -153,6 +156,11 @@ static void send_cmd(struct addrinfo *info, int socket, int type, ChatUser_t *up
                 case CF_LEAVE:
                     strcpy(compare_msg, "REMOVE_OK");
                     break;
+                case CF_WHO:
+                    strcpy(compare_msg, "WHO_OK");
+                    break;
+                default:
+                    fprintf(stderr, "Error: Reponse not accounted for.\n");
 
             }
             printf("%s\n", in_msg); // Accounts for incoming chat messages, bad output tho

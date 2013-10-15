@@ -32,6 +32,9 @@ public void* pqget(void *qp);
 /* apply a void function (e.g. a printing fn) to every element of a queue */
 public void pqapply(void *qp, void (*fn)(void* elementp));
 
+// Added by will: apply with a function that has an accumulator
+public void pqfold(void *qp, void *(*fn)(void *elementp, void *accumulator), void *acc);
+
 /* search a queue using a supplied boolean function, returns an element */
 public void* pqsearch(void *qp, 
 		     int (*searchfn)(void* elementp,void* keyp),

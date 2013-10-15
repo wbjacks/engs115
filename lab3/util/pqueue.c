@@ -55,6 +55,13 @@ public void pqapply(void *qp, void (*fn)(void *elementp)) {
 
 }
 
+public void pqfold(void *qp, void *(*fn)(void *elementp, void *accumulator), void *acc) {
+    pthread_mutex_lock(&(((PQueue_t *)qp)->lock));
+    qfold(((PQueue_t *)qp)->queue, fn, acc);
+    pthread_mutex_unlock(&(((PQueue_t *)qp)->lock));
+
+}
+
 public void *pqsearch(void *qp, int (*searchfn)(void *elementp, void *keyp),
     void *skeyp)
 {

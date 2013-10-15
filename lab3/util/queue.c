@@ -105,6 +105,16 @@ public void qapply(void *qp, void (*fn)(void *elementp)) {
     }
 }
 
+public void qfold(void *qp, void *(*fn)(void *elementp, void *accumulator), void *acc) {
+    Queue_Element_t *pt;
+    pt = (Queue_Element_t *)((Queue_t *)qp)->first;
+    while(pt != NULL) {
+        acc = (*fn)(pt->element, acc);
+        pt = pt->next;
+
+    }
+}
+
 public void *qsearch(void *qp, int (*searchfn)(void *elementp, void *keyp),
     void *skeyp)
 {
