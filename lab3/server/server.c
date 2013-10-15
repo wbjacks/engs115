@@ -6,13 +6,18 @@ static void *receiver(void *pt);
 static void *parser(void *pt);
 static void *dispatcher(void *pt);
 
-static void disp_msg(void);
+//static void disp_msg(void);
 static void disp_ping(ChatCommand_t *pt);
+static void disp_join(ChatCommand_t *pt);
+
+static int find_user(void *ep, void *kp);
 
 // Globals
 void *msg_queue;
 void *task_queue;
 int sockfd;
+ChatRoom_t *room;
+
 
 int main(int argc, char *argv[]) {
     int status;
@@ -162,7 +167,7 @@ static void *parser(void *pt) {
 
             }
             else if (!strncmp(tok, "join", 4)) {
-                cc->type = CF_MSG;
+                cc->type = CF_JOIN;
                 // Construct a user object
 
             }
@@ -194,6 +199,24 @@ static void *parser(void *pt) {
 static void *dispatcher(void *pt) {
     char msg[MAX_MSG_LENGTH];
     ChatCommand_t *cc;
+    char input[MAX_INPUT_LENGTH];
+
+    // First dispatcher creates the chat room
+    if (!room) {
+        room = (ChatRoom_t *)malloc(sizeof(ChatRoom_t));
+        printf("Please enter name of room: ");
+        if (scanf("%s", input) == EOF) {
+            fprintf(stderr, "Problem reading input.\n");
+            fprintf(stderr, "Error is: %s.\n", strerror(errno));
+
+        }
+        strncpy(room->name, input, strlen(input));
+        room->id = sockfd;
+        room->user_count = 0;
+        room->qp = pqopen();
+        pthread_mutex_init(&(room->lock), NULL);
+
+    }
 
     // Grab task from pqueue
     for (;;) {
@@ -215,7 +238,10 @@ static void *dispatcher(void *pt) {
                     disp_ping(cc);
                     break;
 
-                case CF_JOIN: break;
+                case CF_JOIN:
+                    printf("Join received!\n");
+                    disp_join(cc);
+                    break;
                 case CF_LEAVE: break;
                 case CF_WHO: break;
                 default:
@@ -229,7 +255,7 @@ static void *dispatcher(void *pt) {
 
 }
 
-static void disp_msg(void) {}
+//static void disp_msg(void) {}
 static void disp_ping(ChatCommand_t *pt) {
     if (sendto(sockfd, "pong", (size_t)5, 0,
         (struct sockaddr *)&(pt->src), pt->src_len) == -1)
@@ -237,4 +263,26 @@ static void disp_ping(ChatCommand_t *pt) {
         fprintf(stderr, "Error: Problem sending message.\n");
         fprintf(stderr, "Error is: %s.\n", strerror(errno));
     }
+}
+
+static void disp_join(ChatCommand_t *pt) {
+    // Check that user id doesn't already exist in room
+    
+    if (!pqsearch(room->qp, find_user, &(((ChatUser_t *)pt->data)->id))) {
+        // Add user to list
+        pqput(room->qp, pt->data);
+
+        // Return JOIN_OK message
+        if (sendto(sockfd, "JOIN_OK", (size_t)8, 0,
+            (struct sockaddr *)&(pt->src), pt->src_len) == -1)
+        {
+            fprintf(stderr, "Error: Problem sending message.\n");
+            fprintf(stderr, "Error is: %s.\n", strerror(errno));
+        }
+    }
+}
+
+static int find_user(void *ep, void *kp) {
+    return ((ChatUser_t *)ep)->id == *((int *)kp);
+
 }

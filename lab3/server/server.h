@@ -10,10 +10,12 @@
 #include <pthread.h>
 
 #include "../util/pqueue.h"
+#include "../util/user.h"
 
 // Defines
 #define MAX_MSG_LENGTH 100
 #define MAX_TOK 99
+#define MAX_INPUT_LENGTH 100
 
 #define NUM_PARSERS 1
 #define NUM_DISPATCHERS 1

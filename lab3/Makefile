@@ -8,7 +8,7 @@ UTIL_HFILES= util/user.h util/queue.h util/pqueue.h
 UTIL_OFILES= util/user.o util/queue.o util/pqueue.o
 
 CLIENT_CFILES=$(UTIL_CFILES) client/client.c
-CLIENT_HFILES=$(UTIL_HILES)  
+CLIENT_HFILES=$(UTIL_HILES)  client/client.h 
 CLIENT_OFILES=$(UTIL_OFILES) client/client.o
 
 SERVER_CFILES=$(UTIL_CFILES) server/server.c

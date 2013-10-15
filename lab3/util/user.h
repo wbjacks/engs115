@@ -8,9 +8,11 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <errno.h>
+#include <pthread.h>
 
 // Defines
 #define MAX_ALIAS_SIZE 91
+#define MAX_ROOM_NAME_SIZE 100
 
 // Structs
 struct __chat_user {
@@ -23,9 +25,11 @@ typedef struct __chat_user ChatUser_t;
 
 struct __chat_room {
     int id;
-    struct sockaddr_in address;
+    char name[MAX_ROOM_NAME_SIZE];
+    //struct sockaddr_in address;
     int user_count;
     void *qp; // List of users
+    pthread_mutex_t lock;
 
 };
 
