@@ -2,6 +2,7 @@
 #include "./server.h"
 
 // Statics
+static void *connector(void *pt);
 static void *receiver(void *pt);
 static void *parser(void *pt);
 static void *dispatcher(void *pt);
@@ -18,6 +19,7 @@ static void *curried_sprintf(void *ep, void *acc);
 // Globals
 void *msg_queue;
 void *task_queue;
+void *connection_queue;
 int sockfd;
 ChatRoom_t *room;
 
@@ -28,7 +30,7 @@ int main(int argc, char *argv[]) {
     void *st;
     struct addrinfo hints;
     struct addrinfo *info;
-    pthread_t rec_thread, par_threads[NUM_PARSERS], disp_threads[NUM_DISPATCHERS];
+    pthread_t conn_thread, par_threads[NUM_PARSERS], disp_threads[NUM_DISPATCHERS];
 
     if (argc != 2) {
         fprintf(stderr, "Improper number of arguments. Exiting...\n");
@@ -38,7 +40,7 @@ int main(int argc, char *argv[]) {
     /* Get info */
     memset(&hints, 0, sizeof(struct addrinfo));
     hints.ai_family = AF_UNSPEC;        // don't care IPv4 or IPv6
-    hints.ai_socktype = SOCK_DGRAM; // UDP datagram sockets
+    hints.ai_socktype = SOCK_STREAM; // UDP datagram sockets
     hints.ai_flags = AI_PASSIVE;      // fill in my IP for me
 
     if ((status = getaddrinfo(NULL, argv[1], &hints, &info)) != 0) {
@@ -52,9 +54,10 @@ int main(int argc, char *argv[]) {
     // Create queues
     msg_queue = pqopen();
     task_queue = pqopen();
+    connection_queue = pqopen();
 
-    // Launch receiver
-    pthread_create(&rec_thread, NULL, receiver, (void *)info);
+    // Launch connector 
+    pthread_create(&conn_thread, NULL, connector, (void *)info);
 
     // Launch parsers
     for (i = 0; i < NUM_PARSERS; i++)
@@ -65,7 +68,7 @@ int main(int argc, char *argv[]) {
         pthread_create(&disp_threads[i], NULL, dispatcher, NULL);
 
     // Wait for all to join...
-    pthread_join(rec_thread, &st);
+    pthread_join(conn_thread, &st);
     for (i = 0; i < NUM_PARSERS; i++)
         pthread_join(par_threads[i], &st);
     for (i = 0; i < NUM_DISPATCHERS; i++)
@@ -78,16 +81,16 @@ int main(int argc, char *argv[]) {
 
 }
 
-/* Receiver does all socket-related tasks, accepting input and parsing */
-static void *receiver(void *pt) {
-    int bytes;
-    char msg[MAX_MSG_LENGTH];
-    char *str_element;
-    MsgQueueElement_t *me_pt;
-    struct addrinfo *info = (struct addrinfo *)pt;
+/* Connector manages incoming connect()s from clients and launches recievers */
+static void *connector(void *pt) {
+    int sub_socket;
     struct sockaddr_storage incoming_ip;
+    struct addrinfo *info = (struct addrinfo *)pt;
     socklen_t incoming_ip_len;
-
+    ReceiverInput_t *ri;
+    pthread_t *rec_thread;
+    
+    // Create main socket and bind it
     if ((sockfd = socket(info->ai_family, info->ai_socktype, info->ai_protocol))
          == -1)
     {
@@ -106,15 +109,60 @@ static void *receiver(void *pt) {
     }
     printf("Socket bound to: %d.\n", sockfd);
 
+    for (;;) {
+        // Listen for connects
+        if (listen(sockfd, LISTEN_BACKLOG) == -1) {
+            fprintf(stderr, "Error: Problem with listen.\n");
+            fprintf(stderr, "Error is: %s.\n", strerror(errno));
+            return NULL;
+
+        }
+        // Got something from listen, accept and launch a receiver
+        incoming_ip_len = sizeof(incoming_ip);
+        if ((sub_socket = accept(sockfd, (struct sockaddr *)&incoming_ip,
+            &incoming_ip_len)) == -1)
+        {
+            fprintf(stderr, "Error: Problem accepting incoming connection.\n");
+            fprintf(stderr, "Error is: %s.\n", strerror(errno));
+            return NULL;
+
+        }
+        //sleep(10);
+        //printf("Connection accepted!");
+        //fflush(stdout);
+
+        // Launch reciever, add to queue
+        rec_thread = (pthread_t *)malloc(sizeof(pthread_t));
+        ri = (ReceiverInput_t *)malloc(sizeof(ReceiverInput_t));
+        ri->sub_socket = sub_socket;
+        pthread_create(rec_thread, NULL, receiver, (void *)ri);
+        pqput(connection_queue, rec_thread);
+
+    }
+}
+
+/* Receiver manages a single socket and accepts it's input */
+static void *receiver(void *pt) {
+    int bytes;
+    char msg[MAX_MSG_LENGTH];
+    char *str_element;
+    MsgQueueElement_t *me_pt;
+    ReceiverInput_t *input = (ReceiverInput_t *)pt;
+
     /* UNG UNG WHUT UP MAYNE LUUUP */
     for (;;) { // change this to check for a termination flag?
         memset(msg, 0, MAX_MSG_LENGTH); 
-        incoming_ip_len = sizeof(incoming_ip);
-        if ((bytes = recvfrom(sockfd, msg, MAX_MSG_LENGTH-1, 0,
-            (struct sockaddr *)&incoming_ip, &incoming_ip_len)) == -1)
+        if ((bytes = recv(input->sub_socket, msg, MAX_MSG_LENGTH-1, 0)) == -1)
         {
             fprintf(stderr, "Error: Problem receiving.\n");
             fprintf(stderr, "Error is: %s.\n", strerror(errno));
+
+        }
+        else if (bytes == 0) {
+            // Connection closed, kill and exit
+            printf("Connection closed on socket %d, closing...\n", input->sub_socket);
+            close(input->sub_socket);
+            break;
 
         }
         else {
@@ -126,8 +174,7 @@ static void *receiver(void *pt) {
             // Create MsgElement_t
             me_pt = (MsgQueueElement_t *)malloc(sizeof(MsgQueueElement_t));
             me_pt->str = str_element;
-            me_pt->src = incoming_ip; // Copy by value?
-            me_pt->src_len = incoming_ip_len;
+            me_pt->sub_socket = input->sub_socket;
             pqput(msg_queue, (void *)me_pt);
 
         }
@@ -158,8 +205,7 @@ static void *parser(void *pt) {
             
             // Construct struct
             cc = (ChatCommand_t *)malloc(sizeof(ChatCommand_t));
-            cc->src = e_pt->src;
-            cc->src_len = e_pt->src_len;
+            cc->sub_socket = e_pt->sub_socket;
             
             // Switch on the token, fill in appropriate value
             if (!strncmp(tok, "msg", 3)) {
@@ -167,6 +213,7 @@ static void *parser(void *pt) {
                 tok = strtok_r(NULL, ":", &save_pt);
                 src_id = atoi(tok);
                 up = pqsearch(room->qp, find_user, &src_id);
+                if (!up) break;
                 tok = strtok_r(NULL, ":", &save_pt);
                 cc->data = malloc(strlen(tok) + 1);
                 cc->issuer = *up;
@@ -186,8 +233,7 @@ static void *parser(void *pt) {
 
                 tok = strtok_r(NULL, ":", &save_pt);
                 up->id = atoi(tok);
-                up->src = cc->src;
-                up->src_len = cc->src_len;
+                up->sub_socket = cc->sub_socket;
                 cc->data = up;
 
             }
@@ -306,11 +352,10 @@ static void *disp_msg(void *el, void *pt) {
         out_msg = malloc(strlen((char *)cc->data) + strlen(cc->issuer.alias) + 3);
         sprintf(out_msg, "%s: %s", cc->issuer.alias, (char *)cc->data);
         
-        if (sendto(sockfd, out_msg, strlen(out_msg)+1, 0,
-            (struct sockaddr *)&(up->src), up->src_len) == -1)
-        {
+        if (send(up->sub_socket, out_msg, strlen(out_msg)+1, 0) == -1) {
             fprintf(stderr, "Error: Problem sending message.\n");
             fprintf(stderr, "Error is: %s.\n", strerror(errno));
+
         }
     }
     return pt;
@@ -318,11 +363,10 @@ static void *disp_msg(void *el, void *pt) {
 }
 
 static void disp_ping(ChatCommand_t *pt) {
-    if (sendto(sockfd, "pong", (size_t)5, 0,
-        (struct sockaddr *)&(pt->src), pt->src_len) == -1)
-    {
+    if (send(pt->sub_socket, "pong", (size_t)5, 0) == -1) {
         fprintf(stderr, "Error: Problem sending message.\n");
         fprintf(stderr, "Error is: %s.\n", strerror(errno));
+
     }
 }
 
@@ -333,11 +377,10 @@ static void disp_join(ChatCommand_t *pt) {
         pqput(room->qp, pt->data);
 
         // Return JOIN_OK message
-        if (sendto(sockfd, "JOIN_OK", (size_t)8, 0,
-            (struct sockaddr *)&(pt->src), pt->src_len) == -1)
-        {
+        if (send(pt->sub_socket, "JOIN_OK", (size_t)8, 0) == -1) {
             fprintf(stderr, "Error: Problem sending message.\n");
             fprintf(stderr, "Error is: %s.\n", strerror(errno));
+
         }
     }
 }
@@ -349,11 +392,10 @@ static void disp_leave(ChatCommand_t *pt) {
     up = (ChatUser_t *)pqremove(room->qp, find_user, &(pt->issuer.id));
     if (up) {
         // Return REMOVE_OK message
-        if (sendto(sockfd, "REMOVE_OK", (size_t)10, 0,
-            (struct sockaddr *)&(pt->src), pt->src_len) == -1)
-        {
+        if (send(pt->sub_socket, "REMOVE_OK", (size_t)10, 0) == -1) {
             fprintf(stderr, "Error: Problem sending message.\n");
             fprintf(stderr, "Error is: %s.\n", strerror(errno));
+
         }
     }
 }
@@ -366,11 +408,10 @@ static void disp_who(ChatCommand_t *pt) {
     pqfold(room->qp, curried_sprintf, who_str);
 
     // Send
-    if (sendto(sockfd, who_str, strlen(who_str)+1, 0,
-        (struct sockaddr *)&(pt->src), pt->src_len) == -1)
-    {
+    if (send(pt->sub_socket, who_str, strlen(who_str)+1, 0) == -1) {
         fprintf(stderr, "Error: Problem sending message.\n");
         fprintf(stderr, "Error is: %s.\n", strerror(errno));
+
     }
 }
 

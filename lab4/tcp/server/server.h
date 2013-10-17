@@ -29,30 +29,28 @@
 #define CF_LEAVE 3
 #define CF_WHO 4
 
+#define LISTEN_BACKLOG 20
+
 // Structures
 
 struct __chat_command {
     int type;
     void *data;
     ChatUser_t issuer;
-
-    // Might be able to take these out, as they are in ChatUser_t
-    struct sockaddr_storage src;
-    socklen_t src_len;
+    int sub_socket;
 
 };
 typedef struct __chat_command ChatCommand_t;
 
 struct __receiver_input {
-    struct addrinfo *info;
+    int sub_socket;
 
 };
 typedef struct __receiver_input ReceiverInput_t;
 
 struct __message_queue_element {
     char *str;
-    struct sockaddr_storage src;
-    socklen_t src_len;
+    int sub_socket;
 
 };
 typedef struct __message_queue_element MsgQueueElement_t;

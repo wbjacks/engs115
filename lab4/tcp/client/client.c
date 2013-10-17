@@ -7,7 +7,6 @@ static void argument_help(void);
 
 static void *listener(void *pt);
 
-
 static void send_cmd(struct addrinfo *info, int socket, int type, ChatUser_t *up);
 
 int main(int argc, char *argv[]) {
@@ -32,7 +31,7 @@ int main(int argc, char *argv[]) {
     // Prepare for getadddinfo
     memset(&hints, 0, sizeof(struct addrinfo));
     hints.ai_family = AF_UNSPEC;     // don't care IPv4 or IPv6
-    hints.ai_socktype = SOCK_DGRAM; // UDP
+    hints.ai_socktype = SOCK_STREAM; // UDP
 
     // Use ip, port to get address info
     if ((status = getaddrinfo(argv[1], argv[2], &hints, &info)) != 0) {
@@ -49,6 +48,13 @@ int main(int argc, char *argv[]) {
     // Open socket
     sockfd = socket(info->ai_family, info->ai_socktype, info->ai_protocol);
 
+    // Connect- ALARM SHIT GOES HERE
+    if (connect(sockfd, info->ai_addr, info->ai_addrlen) == -1) {
+        fprintf(stderr, "Error: Problem connecting.\n");
+        fprintf(stderr, "Error is: %s.\n", strerror(errno));
+        return EXIT_FAILURE;
+
+    }
     /* Connection has succeeded, begin running things... */
     printf("Connection success, socket is: %d.\n", sockfd);
 
@@ -111,28 +117,22 @@ int main(int argc, char *argv[]) {
 
 static void send_cmd(struct addrinfo *info, int socket, int type, ChatUser_t *up) {
     int status;
-    //struct sockaddr_storage incoming_ip;
-    //socklen_t incoming_ip_len;
     char out_msg[MAX_INPUT_LENGTH];
-    //char in_msg[MAX_INPUT_LENGTH];
-    //char compare_msg[10];
     
     switch (type) {
         case CF_PING:
-            status = sendto(socket, "ping", 5, 0, info->ai_addr, info->ai_addrlen);
+            status = send(socket, "ping", 5, 0);
             break;
         case CF_JOIN:
             sprintf(out_msg, "join:%s:%d", up->alias, up->id);
-            status = sendto(socket, out_msg, strlen(out_msg)+1, 0, 
-                info->ai_addr, info->ai_addrlen);
+            status = send(socket, out_msg, strlen(out_msg)+1, 0); 
             break;
         case CF_LEAVE:
             sprintf(out_msg, "leave:%d", up->id);
-            status = sendto(socket, out_msg, strlen(out_msg)+1, 0, 
-                info->ai_addr, info->ai_addrlen);
+            status = send(socket, out_msg, strlen(out_msg)+1, 0); 
             break;
         case CF_WHO:
-            status = sendto(socket, "who", 4, 0, info->ai_addr, info->ai_addrlen);
+            status = send(socket, "who", 4, 0);
             break;
         default:
             fprintf(stderr, "Command not supported.\n");
@@ -150,16 +150,20 @@ static void send_cmd(struct addrinfo *info, int socket, int type, ChatUser_t *up
 
 static void *listener(void *pt) {
     char in_msg[MAX_INPUT_LENGTH];
-    struct sockaddr_storage incoming_ip;
-    socklen_t incoming_ip_len;
+    int bytes;
 
     for (;;) {
         memset(in_msg, 0, 5);
-        if (recvfrom(*((int *)pt), in_msg, MAX_INPUT_LENGTH, 0,
-            (struct sockaddr *)&incoming_ip, &incoming_ip_len) == -1)
-        {
+        if ((bytes = recv(*((int *)pt), in_msg, MAX_INPUT_LENGTH, 0)) == -1) {
             fprintf(stderr, "Error: Problem receiving.\n");
             fprintf(stderr, "Error is: %s.\n", strerror(errno));
+
+        }
+        else if (bytes == 0) {
+            // Connection closed, kill and exit
+            printf("Connection closed on socket %d, closing...\n", *((int *)pt));
+            close(*((int *)pt));
+            break;
 
         }
         else {
