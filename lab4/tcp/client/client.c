@@ -10,6 +10,9 @@ static void *listener(void *pt);
 
 static void send_cmd(struct addrinfo *info, int socket, int type, ChatUser_t *up);
 
+// Globals
+int timeout_attempts;
+
 int main(int argc, char *argv[]) {
     int sockfd;
     int status;
@@ -50,15 +53,21 @@ int main(int argc, char *argv[]) {
     sockfd = socket(info->ai_family, info->ai_socktype, info->ai_protocol);
 
     // Connect and alarm stuff
-    signal(SIGALRM, timeout_alarm); // Theoretically, this works, but I have no idea how to test
-    alarm(TIMEOUT_TIME);
-    if (connect(sockfd, info->ai_addr, info->ai_addrlen) == -1) {
-        fprintf(stderr, "Error: Problem connecting.\n");
-        fprintf(stderr, "Error is: %s.\n", strerror(errno));
-        return EXIT_FAILURE;
+    timeout_attempts = 0;
+    signal(SIGALRM, timeout_alarm);
+    // Theoretically, this works, but I have no idea how to test
+    for(;;) {
+        if (!(timeout_attempts < MAX_TIMEOUT_ATTEMPTS)) return EXIT_FAILURE;
+        alarm(TIMEOUT_TIME);
+        if (connect(sockfd, info->ai_addr, info->ai_addrlen) == -1) {
+            fprintf(stderr, "Error: Problem connecting.\n");
+            fprintf(stderr, "Error is: %s.\n", strerror(errno));
+            return EXIT_FAILURE;
 
+        }
+        alarm(0);
+        break;
     }
-    alarm(0);
     /* Connection has succeeded, begin running things... */
     printf("Connection success, socket is: %d.\n", sockfd);
 
@@ -120,6 +129,7 @@ int main(int argc, char *argv[]) {
 }
 
 static void timeout_alarm(int signo) {
+    timeout_attempts++;
     return;
 
 }

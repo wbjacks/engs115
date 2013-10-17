@@ -21,4 +21,5 @@
 #define CF_LEAVE 3
 #define CF_WHO 4
 
-#define TIMEOUT_TIME 3
+#define TIMEOUT_TIME 5
+#define MAX_TIMEOUT_ATTEMPTS 3
