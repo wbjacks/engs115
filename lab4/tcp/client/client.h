@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <signal.h>
 
 #include "../util/user.h"
 
@@ -20,3 +21,4 @@
 #define CF_LEAVE 3
 #define CF_WHO 4
 
+#define TIMEOUT_TIME 3

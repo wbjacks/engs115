@@ -2,7 +2,6 @@
 #include "./server.h"
 
 // Statics
-static void *connector(void *pt);
 static void *receiver(void *pt);
 static void *parser(void *pt);
 static void *dispatcher(void *pt);
@@ -30,7 +29,11 @@ int main(int argc, char *argv[]) {
     void *st;
     struct addrinfo hints;
     struct addrinfo *info;
-    pthread_t conn_thread, par_threads[NUM_PARSERS], disp_threads[NUM_DISPATCHERS];
+    pthread_t *rec_thread, par_threads[NUM_PARSERS], disp_threads[NUM_DISPATCHERS];
+    int sub_socket;
+    struct sockaddr_storage incoming_ip;
+    socklen_t incoming_ip_len;
+    ReceiverInput_t *ri;
 
     if (argc != 2) {
         fprintf(stderr, "Improper number of arguments. Exiting...\n");
@@ -56,9 +59,6 @@ int main(int argc, char *argv[]) {
     task_queue = pqopen();
     connection_queue = pqopen();
 
-    // Launch connector 
-    pthread_create(&conn_thread, NULL, connector, (void *)info);
-
     // Launch parsers
     for (i = 0; i < NUM_PARSERS; i++)
         pthread_create(&par_threads[i], NULL, parser, NULL);
@@ -67,29 +67,7 @@ int main(int argc, char *argv[]) {
     for (i = 0; i < NUM_DISPATCHERS; i++)
         pthread_create(&disp_threads[i], NULL, dispatcher, NULL);
 
-    // Wait for all to join...
-    pthread_join(conn_thread, &st);
-    for (i = 0; i < NUM_PARSERS; i++)
-        pthread_join(par_threads[i], &st);
-    for (i = 0; i < NUM_DISPATCHERS; i++)
-        pthread_join(disp_threads[i], &st);
 
-    /* Clean and exit */
-    freeaddrinfo(info);
-    close(sockfd);
-    return EXIT_SUCCESS;
-
-}
-
-/* Connector manages incoming connect()s from clients and launches recievers */
-static void *connector(void *pt) {
-    int sub_socket;
-    struct sockaddr_storage incoming_ip;
-    struct addrinfo *info = (struct addrinfo *)pt;
-    socklen_t incoming_ip_len;
-    ReceiverInput_t *ri;
-    pthread_t *rec_thread;
-    
     // Create main socket and bind it
     if ((sockfd = socket(info->ai_family, info->ai_socktype, info->ai_protocol))
          == -1)
@@ -97,26 +75,28 @@ static void *connector(void *pt) {
         fprintf(stderr, "Error: Problem binding to socket.\n");
         fprintf(stderr, "Error is: %s.\n", strerror(errno));
         fprintf(stderr, "Exiting...\n");
-        return NULL;
+        return EXIT_FAILURE;
 
     }
     if (bind(sockfd, info->ai_addr, info->ai_addrlen) == -1) {
         fprintf(stderr, "Error: Problem binding to socket.\n");
         fprintf(stderr, "Error is: %s.\n", strerror(errno));
         fprintf(stderr, "Exiting...\n");
-        return NULL;
+        return EXIT_FAILURE;
 
     }
     printf("Socket bound to: %d.\n", sockfd);
 
+    /* Connector loop! */
     for (;;) {
         // Listen for connects
         if (listen(sockfd, LISTEN_BACKLOG) == -1) {
             fprintf(stderr, "Error: Problem with listen.\n");
             fprintf(stderr, "Error is: %s.\n", strerror(errno));
-            return NULL;
+            continue;
 
         }
+        sleep(10);
         // Got something from listen, accept and launch a receiver
         incoming_ip_len = sizeof(incoming_ip);
         if ((sub_socket = accept(sockfd, (struct sockaddr *)&incoming_ip,
@@ -124,11 +104,10 @@ static void *connector(void *pt) {
         {
             fprintf(stderr, "Error: Problem accepting incoming connection.\n");
             fprintf(stderr, "Error is: %s.\n", strerror(errno));
-            return NULL;
+            continue;
 
         }
-        //sleep(10);
-        //printf("Connection accepted!");
+        printf("Connection accepted!");
         //fflush(stdout);
 
         // Launch reciever, add to queue
@@ -139,6 +118,18 @@ static void *connector(void *pt) {
         pqput(connection_queue, rec_thread);
 
     }
+
+    // Wait for all to join...
+    for (i = 0; i < NUM_PARSERS; i++)
+        pthread_join(par_threads[i], &st);
+    for (i = 0; i < NUM_DISPATCHERS; i++)
+        pthread_join(disp_threads[i], &st);
+
+    /* Clean and exit */
+    freeaddrinfo(info);
+    close(sockfd);
+    return EXIT_SUCCESS;
+
 }
 
 /* Receiver manages a single socket and accepts it's input */

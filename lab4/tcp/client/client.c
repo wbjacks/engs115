@@ -4,6 +4,7 @@
 // Static function prototypes
 static char *get_message(void);
 static void argument_help(void);
+static void timeout_alarm(int signo);
 
 static void *listener(void *pt);
 
@@ -48,13 +49,16 @@ int main(int argc, char *argv[]) {
     // Open socket
     sockfd = socket(info->ai_family, info->ai_socktype, info->ai_protocol);
 
-    // Connect- ALARM SHIT GOES HERE
+    // Connect and alarm stuff
+    signal(SIGALRM, timeout_alarm); // Theoretically, this works, but I have no idea how to test
+    alarm(TIMEOUT_TIME);
     if (connect(sockfd, info->ai_addr, info->ai_addrlen) == -1) {
         fprintf(stderr, "Error: Problem connecting.\n");
         fprintf(stderr, "Error is: %s.\n", strerror(errno));
         return EXIT_FAILURE;
 
     }
+    alarm(0);
     /* Connection has succeeded, begin running things... */
     printf("Connection success, socket is: %d.\n", sockfd);
 
@@ -112,6 +116,11 @@ int main(int argc, char *argv[]) {
     close(sockfd);
     freeaddrinfo(info);
     return EXIT_SUCCESS;
+
+}
+
+static void timeout_alarm(int signo) {
+    return;
 
 }
 
