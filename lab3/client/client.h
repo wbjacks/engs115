@@ -7,6 +7,7 @@
 #include <netdb.h>
 #include <errno.h>
 #include <unistd.h>
+#include <pthread.h>
 
 #include "../util/user.h"
 
@@ -18,5 +19,4 @@
 #define CF_JOIN 2
 #define CF_LEAVE 3
 #define CF_WHO 4
-
 

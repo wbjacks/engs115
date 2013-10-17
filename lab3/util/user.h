@@ -20,6 +20,8 @@
 struct __chat_user {
     int id;
     char alias[MAX_ALIAS_SIZE]; // Be sure to enfore 90 char limit
+    struct sockaddr_storage src;
+    socklen_t src_len;
 
 };
 

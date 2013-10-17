@@ -34,6 +34,9 @@
 struct __chat_command {
     int type;
     void *data;
+    ChatUser_t issuer;
+
+    // Might be able to take these out, as they are in ChatUser_t
     struct sockaddr_storage src;
     socklen_t src_len;
 

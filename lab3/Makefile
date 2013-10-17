@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-std=gnu99 -Wall -pedantic -ggdb -pthread -Ofast
+CFLAGS=-std=gnu99 -Wall -pedantic -ggdb -pthread
 LOADERS= 
 EXE=chat_client chat_server
 

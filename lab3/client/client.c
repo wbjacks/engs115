@@ -5,20 +5,18 @@
 static char *get_message(void);
 static void argument_help(void);
 
-static void send_cmd(struct addrinfo *info, int socket, int type, ChatUser_t *up);
+static void *listener(void *pt);
 
-//static void send_ping(struct addrinfo *info, int socket);
-//static void send_join(struct addrinfo *info, int socket);
-//static void send_who(struct addrinfo *info, int socket);
-//static void send_leave(struct addrinfo *info, int socket);
+
+static void send_cmd(struct addrinfo *info, int socket, int type, ChatUser_t *up);
 
 int main(int argc, char *argv[]) {
     int sockfd;
     int status;
-    //char input[MAX_INPUT_LENGTH];
     char *input;
     char msg[MAX_INPUT_LENGTH];
     struct addrinfo hints, *info;
+    pthread_t listener_thread;
     ChatUser_t *user;
 
     /* Get port input */
@@ -54,6 +52,9 @@ int main(int argc, char *argv[]) {
     /* Connection has succeeded, begin running things... */
     printf("Connection success, socket is: %d.\n", sockfd);
 
+    // Launch listener thread for incoming messages
+    pthread_create(&listener_thread, NULL, listener, (void *)&sockfd);
+
     /* MAIN LOOP UP IN HUR */
     user = create_user();
     for(;;) {
@@ -80,10 +81,15 @@ int main(int argc, char *argv[]) {
 
             }
         }
+        else if (!input[0]) {
+            // I like pressing enter a lot and thus will treat it as dummy input
+            continue;
+
+        }
         else {
             // Chat message!
-            sprintf(msg, "msg:%s", input);
-            if (sendto(sockfd, msg, strlen(msg), 0,
+            sprintf(msg, "msg:%d:%s", user->id, input);
+            if (sendto(sockfd, msg, strlen(msg)+1, 0,
                 info->ai_addr, info->ai_addrlen) == -1)
             {
                 fprintf(stderr, "Error: Problem sending message.\n");
@@ -105,11 +111,11 @@ int main(int argc, char *argv[]) {
 
 static void send_cmd(struct addrinfo *info, int socket, int type, ChatUser_t *up) {
     int status;
-    struct sockaddr_storage incoming_ip;
-    socklen_t incoming_ip_len;
+    //struct sockaddr_storage incoming_ip;
+    //socklen_t incoming_ip_len;
     char out_msg[MAX_INPUT_LENGTH];
-    char in_msg[MAX_INPUT_LENGTH];
-    char compare_msg[10];
+    //char in_msg[MAX_INPUT_LENGTH];
+    //char compare_msg[10];
     
     switch (type) {
         case CF_PING:
@@ -117,12 +123,12 @@ static void send_cmd(struct addrinfo *info, int socket, int type, ChatUser_t *up
             break;
         case CF_JOIN:
             sprintf(out_msg, "join:%s:%d", up->alias, up->id);
-            status = sendto(socket, out_msg, strlen(out_msg), 0, 
+            status = sendto(socket, out_msg, strlen(out_msg)+1, 0, 
                 info->ai_addr, info->ai_addrlen);
             break;
         case CF_LEAVE:
             sprintf(out_msg, "leave:%d", up->id);
-            status = sendto(socket, out_msg, strlen(out_msg), 0, 
+            status = sendto(socket, out_msg, strlen(out_msg)+1, 0, 
                 info->ai_addr, info->ai_addrlen);
             break;
         case CF_WHO:
@@ -138,42 +144,30 @@ static void send_cmd(struct addrinfo *info, int socket, int type, ChatUser_t *up
         fprintf(stderr, "Error: Problem sending message.\n");
         fprintf(stderr, "Error is: %s.\n", strerror(errno));
     }
-    else {
-        // Wait for response from server
-        // This is kinda a hack
-        for (;;) {
-            memset(in_msg, 0, 5);
-            memset(compare_msg, 0, 5);
-            status = recvfrom(socket, in_msg, MAX_INPUT_LENGTH, 0, 
-                (struct sockaddr *)&incoming_ip, &incoming_ip_len);
-            switch (type) {
-                case CF_PING:
-                    strcpy(compare_msg, "pong");
-                    break;
-                case CF_JOIN:
-                    strcpy(compare_msg, "JOIN_OK");
-                    break;
-                case CF_LEAVE:
-                    strcpy(compare_msg, "REMOVE_OK");
-                    break;
-                case CF_WHO:
-                    strcpy(compare_msg, "WHO_OK");
-                    break;
-                default:
-                    fprintf(stderr, "Error: Reponse not accounted for.\n");
+    return;
 
-            }
-            printf("%s\n", in_msg); // Accounts for incoming chat messages, bad output tho
-            if (!strncmp(in_msg, compare_msg, strlen(compare_msg))) break;
-            if (status == -1) {
-                fprintf(stderr, "Error: Problem receiving.\n");
-                fprintf(stderr, "Error is: %s.\n", strerror(errno));
-                return;
+}
 
-            }
+static void *listener(void *pt) {
+    char in_msg[MAX_INPUT_LENGTH];
+    struct sockaddr_storage incoming_ip;
+    socklen_t incoming_ip_len;
+
+    for (;;) {
+        memset(in_msg, 0, 5);
+        if (recvfrom(*((int *)pt), in_msg, MAX_INPUT_LENGTH, 0,
+            (struct sockaddr *)&incoming_ip, &incoming_ip_len) == -1)
+        {
+            fprintf(stderr, "Error: Problem receiving.\n");
+            fprintf(stderr, "Error is: %s.\n", strerror(errno));
+
+        }
+        else {
+            printf("\n%s\n", in_msg);
+
         }
     }
-    return;
+    return NULL;
 
 }
 

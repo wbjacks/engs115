@@ -6,7 +6,7 @@ static void *receiver(void *pt);
 static void *parser(void *pt);
 static void *dispatcher(void *pt);
 
-//static void disp_msg(void);
+static void *disp_msg(void *el, void *pt);
 static void disp_ping(ChatCommand_t *pt);
 static void disp_join(ChatCommand_t *pt);
 static void disp_leave(ChatCommand_t *pt);
@@ -120,8 +120,8 @@ static void *receiver(void *pt) {
         else {
             msg[bytes] = '\0';
             printf("Message received of length %d: %s.\n", bytes, msg);
-            str_element = (char *)malloc(sizeof(char) * strlen(msg));
-            strncpy(str_element, msg, strlen(msg));
+            str_element = (char *)malloc(strlen(msg) + 1);
+            strncpy(str_element, msg, strlen(msg)+1);
 
             // Create MsgElement_t
             me_pt = (MsgQueueElement_t *)malloc(sizeof(MsgQueueElement_t));
@@ -138,6 +138,7 @@ static void *receiver(void *pt) {
 
 /* Parser takes input message and parses it into command structures */
 static void *parser(void *pt) {
+    int src_id;
     MsgQueueElement_t *e_pt;
     char *tok, *save_pt;
     ChatCommand_t *cc;
@@ -163,7 +164,13 @@ static void *parser(void *pt) {
             // Switch on the token, fill in appropriate value
             if (!strncmp(tok, "msg", 3)) {
                 cc->type = CF_MSG;
-                cc->data = e_pt->str; // I'm pretty sure this is wrong
+                tok = strtok_r(NULL, ":", &save_pt);
+                src_id = atoi(tok);
+                up = pqsearch(room->qp, find_user, &src_id);
+                tok = strtok_r(NULL, ":", &save_pt);
+                cc->data = malloc(strlen(tok) + 1);
+                cc->issuer = *up;
+                strncpy(cc->data, tok, strlen(tok)+1);
 
             }
             else if (!strncmp(tok, "ping", 4)) {
@@ -175,19 +182,24 @@ static void *parser(void *pt) {
                 // Construct a user object
                 tok = strtok_r(NULL, ":", &save_pt);
                 up = (ChatUser_t *)malloc(sizeof(ChatUser_t));
-                strncpy(up->alias, tok, strlen(tok));
+                strncpy(up->alias, tok, strlen(tok)+1);
 
                 tok = strtok_r(NULL, ":", &save_pt);
                 up->id = atoi(tok);
+                up->src = cc->src;
+                up->src_len = cc->src_len;
                 cc->data = up;
 
             }
             else if (!strncmp(tok, "leave", 5)) {
                 cc->type = CF_LEAVE;
-                // Data becomes user_id
-                cc->data = malloc(sizeof(int));
+                // Get user from id in message
                 tok = strtok_r(NULL, ":", &save_pt);
-                *((int *)cc->data) = atoi(tok);
+                src_id = atoi(tok);
+                up = pqsearch(room->qp, find_user, &src_id);
+                cc->issuer = *up;
+
+                // Data becomes user_id
 
             }
             else if (!strncmp(tok, "who", 3)) {
@@ -225,7 +237,7 @@ static void *dispatcher(void *pt) {
             fprintf(stderr, "Error is: %s.\n", strerror(errno));
 
         }
-        strncpy(room->name, input, strlen(input));
+        strncpy(room->name, input, strlen(input)+1);
         room->id = sockfd;
         room->user_count = 0;
         room->qp = pqopen();
@@ -247,7 +259,9 @@ static void *dispatcher(void *pt) {
             switch (cc->type) {
                 case CF_MSG:
                     printf("Chat message received!\n");
+                    pqfold(room->qp, disp_msg, cc);
                     break;
+
                 case CF_PING:
                     printf("Ping received!\n");
                     disp_ping(cc);
@@ -256,11 +270,13 @@ static void *dispatcher(void *pt) {
                 case CF_JOIN:
                     printf("Join received!\n");
                     disp_join(cc);
+                    room->user_count++;
                     break;
 
                 case CF_LEAVE:
                     printf("Leave received!\n");
                     disp_leave(cc);
+                    room->user_count--;
                     break;
 
                 case CF_WHO:
@@ -279,7 +295,28 @@ static void *dispatcher(void *pt) {
 
 }
 
-//static void disp_msg(void) {}
+static void *disp_msg(void *el, void *pt) {
+    // Used for qapply 
+    ChatCommand_t *cc = (ChatCommand_t *)pt;
+    ChatUser_t *up = (ChatUser_t *)el;
+    char *out_msg;
+
+    if (cc->issuer.id != up->id) {
+        // Add formatting
+        out_msg = malloc(strlen((char *)cc->data) + strlen(cc->issuer.alias) + 3);
+        sprintf(out_msg, "%s: %s", cc->issuer.alias, (char *)cc->data);
+        
+        if (sendto(sockfd, out_msg, strlen(out_msg)+1, 0,
+            (struct sockaddr *)&(up->src), up->src_len) == -1)
+        {
+            fprintf(stderr, "Error: Problem sending message.\n");
+            fprintf(stderr, "Error is: %s.\n", strerror(errno));
+        }
+    }
+    return pt;
+
+}
+
 static void disp_ping(ChatCommand_t *pt) {
     if (sendto(sockfd, "pong", (size_t)5, 0,
         (struct sockaddr *)&(pt->src), pt->src_len) == -1)
@@ -309,7 +346,7 @@ static void disp_leave(ChatCommand_t *pt) {
     ChatUser_t *up;
 
     // Remove user
-    up = (ChatUser_t *)pqremove(room->qp, find_user, &(((ChatUser_t *)pt->data)->id));
+    up = (ChatUser_t *)pqremove(room->qp, find_user, &(pt->issuer.id));
     if (up) {
         // Return REMOVE_OK message
         if (sendto(sockfd, "REMOVE_OK", (size_t)10, 0,

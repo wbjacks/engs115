@@ -130,7 +130,9 @@ public void *qsearch(void *qp, int (*searchfn)(void *elementp, void *keyp),
         pt = pt->next;
 
     }
-    return pt;
+    // UGLY EW
+    if (pt == NULL) return NULL;
+    return pt->element;
 }
 
 public void *qremove(void *qp, int(*searchfn)(void *elementp, void *keyp),
@@ -139,7 +141,12 @@ public void *qremove(void *qp, int(*searchfn)(void *elementp, void *keyp),
     Queue_Element_t *pt;
 
     /* Get element to remove */
-    pt = (Queue_Element_t *)qsearch(qp, searchfn, skeyp);
+    pt = ((Queue_t *)qp)->first;
+    while(pt != NULL) {
+        if (searchfn(pt->element, skeyp)) break;
+        pt = pt->next;
+
+    }
     if (pt == NULL) return NULL;
 
     /* Remove element */
