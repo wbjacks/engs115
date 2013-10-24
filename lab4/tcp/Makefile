@@ -11,9 +11,9 @@ CLIENT_CFILES=$(UTIL_CFILES) client/client.c
 CLIENT_HFILES=$(UTIL_HILES)  client/client.h 
 CLIENT_OFILES=$(UTIL_OFILES) client/client.o
 
-SERVER_CFILES=$(UTIL_CFILES) server/server.c
-SERVER_HFILES=$(UTIL_HFILES) server/server.h
-SERVER_OFILES=$(UTIL_OFILES) server/server.o
+SERVER_CFILES=$(UTIL_CFILES) server/server.c server/threads.c server/commands.c
+SERVER_HFILES=$(UTIL_HFILES) server/server.h server/threads.h server/commands.h
+SERVER_OFILES=$(UTIL_OFILES) server/server.o server/threads.o server/commands.o
 
 OFILES=$(CLIENT_OFILES) $(SERVER_OFILES)
 HFILES=$(CLIENT_HFILES) $(SERVER_HFILES)
