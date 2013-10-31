@@ -15,7 +15,7 @@ int runTkn(int argc, char *argv[]) {
 
     if (rank != 0) {
         // Wait for recieve if not the first
-        MPI_OPEN_RECV(buff, st);
+        MPI_OPEN_RECV(buff, &st);
 
     }
     // Got message, do that print thing

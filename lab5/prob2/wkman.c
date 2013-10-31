@@ -62,7 +62,7 @@ static void manager(int size) {
     // Send OK message to each worker, wait for OK response
     for (i = 1; i < size; i++) {
         MPI_OPEN_SEND((void *)&msg, i);
-        MPI_OPEN_RECV(buff, st);
+        MPI_OPEN_RECV(buff, &st);
 
     }
     free(buff);
