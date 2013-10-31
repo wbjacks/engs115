@@ -32,7 +32,7 @@ int runWkMan(int argc, char *argv[]) {
 static void worker(int size, int rank) {
     int msg = 1;  
     void *buff;
-    struct MPI_Status st;
+    MPI_Status st;
 
     // Make space in buff
     buff = malloc(1 * sizeof(int));
@@ -54,7 +54,7 @@ static void manager(int size) {
     int msg = 1;  
     int i;
     void *buff;
-    struct MPI_Status st;
+    MPI_Status st;
 
     // Make space in buff
     buff = malloc(1 * sizeof(int));

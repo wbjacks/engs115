@@ -9,4 +9,3 @@
     MPI_Comm_rank(MPI_COMM_WORLD, r);\
     MPI_Comm_size(MPI_COMM_WORLD, s);
 
-    

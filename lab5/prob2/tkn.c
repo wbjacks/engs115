@@ -7,7 +7,7 @@ int runTkn(int argc, char *argv[]) {
     // Initialize stuff
     int send_to, rank, size;
     void *buff;
-    struct MPI_Status st;
+    MPI_Status st;
     buff = malloc(1 * sizeof(int));
 
     MPI_RANK_SIZE(&rank, &size);
