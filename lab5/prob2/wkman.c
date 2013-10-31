@@ -38,7 +38,7 @@ static void worker(int size, int rank) {
     buff = malloc(1 * sizeof(int));
 
     // Wait for message from manager
-    MPI_OPEN_RECV(buff, st);
+    MPI_OPEN_RECV(buff, &st);
     
     // When received from manager, print and return
     printf("Hello world! This is worker %d of %d.\n", rank, (size-1));
