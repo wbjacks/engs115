@@ -1,3 +1,5 @@
+#include <mpi.h>
+
 // Macros
 #define MPI_OPEN_SEND(b, dest) MPI_Send(b, sizeof(b), MPI_CHAR, dest, 0, \
     MPI_COMM_WORLD)
