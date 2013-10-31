@@ -1,0 +1,67 @@
+<title>MPI Library Reference: MPI_Bcast</title>
+
+<h2>MPI_Bcast</h2>
+
+This function broadcasts a message from the "root" process to all other
+processes in the group.<p>
+
+<h3>Prototype:</h3>
+
+<dl>
+<dt><b>MPI_Bcast(void *buf, int count, MPI_Datatype datatype,</b>
+<dd><b>int root, MPI_Comm comm);</b>
+</dl>
+
+This routine acts as either a send or a receive, depending on whether or
+not the current node is the 'root'.  It should be run by all processes
+simultaneously, and will allow the root process (specified by the parameter
+'root') to send a message to all other processes.  The non-root processes 
+all receive the message into their own buffer (given by 'buf').<p>
+
+Specifically:
+
+<dl><dt><b>void *buf</b>:
+<dd>For the "root" process, this pointer should point to the data
+to be sent to the other processes.  For the other processes, this should
+point to the buffer in which to receive the data.
+
+<dt><b>int count</b>:
+<dd>This integer should tell how many elements of data you are sending or
+expect to receive.  
+
+<dt><b>MPI_Datatype datatype</b>:
+<dd>Here is where you tell MPI what type of data you are sending or 
+receiving.  There are specially defined constants for all the standard 
+C types, like MPI_INT and MPI_DOUBLE.  
+
+<dt><b>int root</b>:
+<dd>This integer should specify the index of the "root" process.  MPI
+will use this number to figure out which process is doing the sending
+and which are receiving.
+
+<dt><b>MPI_Comm comm</b>:
+<dd>Next we have the <i>Comm</i> variable that we've seen in 
+<a href="MPI_Comm_rank.html">MPI_Comm_rank</a> and 
+<a href="MPI_Comm_size.html">MPI_Comm_size</a>; for now you can just 
+ignore it and pass in "MPI_COMM_WORLD", but it is in fact useful if 
+you intend to limit broadcasts to only certain groups of nodes.<p>
+
+</dl>
+
+
+<h3>Examples</h3>
+
+<dl>
+<dt>To broadcast an array of five integers from the array called "rc_arr" on 
+    process zero into the array of the same name on all other processes:
+<dd><pre>
+MPI_Bcast(rc_arr, 5, MPI_INT, 0, MPI_COMM_WORLD);
+</pre>
+<dt>To broadcast a single double from "x" on process seven into "x" on all 
+    other processes:
+<dd><pre>
+MPI_Bcast(&x, 1, MPI_DOUBLE, 7, MPI_COMM_WORLD);
+</pre>
+</dl>
+
+

@@ -1,0 +1,77 @@
+<title>MPI Library Reference: MPI_Send</title>
+<h2>MPI_Send</h2>
+
+This function allows one process to send some data to another process.<p>
+
+<hr><p>
+
+<h3>Prototype:</h3>
+
+<b>MPI_Send(void *buf, int count, MPI_Datatype datatype, int dest, int tag, MPI_Comm comm);</b>
+
+<p>
+This function will allow any process to send data to another process; let 
+"buf" point to the data you want to send, and let "dest" be the number of 
+the process you want to send it to.<p>
+
+Specifically:
+<dl>
+
+<dt><b>void *buf</b>:
+<dd>This void pointer should point to the beginning of the data you want 
+sent.  For example, if you wanted to send an array of integers called "my_arr" 
+(where my_arr is an int *), you'd probably want to pass "<b>my_arr</b>" in 
+here.<p>
+
+<dt><b>int count</b>:
+<dd>This integer should tell how many elements of data you are sending.  For 
+example, if you wanted to send an array of five integers, this argument should 
+be 5.<p>
+
+<dt><b>MPI_Datatype datatype</b>:
+<dd>Here is where you tell MPI what type of data you are sending.  There are 
+specially defined constants for all the standard C types.  For example, if you 
+were sending an array of ints, you would pass "MPI_INT".  If you were sending 
+doubles, you'd pass "MPI_DOUBLE", and so on.  You get the idea.<p>
+
+<dt><b>int dest</b>:
+<dd>This integer should tell to which process you wish this data sent.  For 
+example, if you are communicating to process 3, you'd send in a 3.<p>
+
+<a name="tag">
+<dt><b>int tag</b>: 
+<dd>This parameter allows you to stick a tag onto your message.  For 
+example, if you were sending, intermittently, messages of two different 
+types, you might want to give the two different types of messages 
+different tags.  The corresponding receive commands also have a tag field, 
+so that some processes, for example, could only be paying attention to 
+mesages of one tag or another. However, this is not really very useful for 
+this function where we are just sending one block of data from one process 
+to another.  For now, just tag your messages with 0.<p>
+
+<dt><b>MPI_Comm comm</b>:
+<dd>Finally, there's the same random <i>Comm</i> variable that we've seen in 
+<a href="MPI_Comm_rank.html">MPI_Comm_rank</a> and 
+<a href="MPI_Comm_size.html">MPI_Comm_size</a>; just ignore it and pass in 
+"MPI_COMM_WORLD".<p>
+
+</dl>
+
+<hr><p>
+
+<h2>Examples</h2>
+
+<dl>
+<dt>To send an array of five integers called "my_arr" to process three:
+<dd><pre>
+MPI_Send(my_arr, 5, MPI_INT, 3,
+         0, MPI_COMM_WORLD);
+</pre>
+<dt>To send a single double in "x" to process eight:
+<dd><pre>
+MPI_Send(&x, 1, MPI_DOUBLE, 8,
+         0, MPI_COMM_WORLD);
+</pre>
+</dl>
+
+

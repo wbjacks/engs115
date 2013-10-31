@@ -1,0 +1,40 @@
+<title>MPI Library Reference: MPI_Finalize</title>
+
+<h2>MPI_Finalize</h2>
+
+This function finalizes, cleans up, and generally shuts down the MPI 
+environment.  It should be the last command executed by your program -- just 
+before the close-brace in main(), or just before calling "<i>exit</i>" to exit 
+the program.<p>
+
+<hr>
+
+<h3>Prototype:</h3>
+
+<b>MPI_Finalize(void);</b><p>
+
+You should call MPI_Finalize right before your program stops, to let MPI 
+know that this process is finished.  Remember, a single MPI program will 
+actually run as multiple processes running on different machines, and the 
+different processes might likely finish at different times. When one of 
+these processes calls MPI_Finalize, MPI knows that process is done.  The 
+other processes, still running, will continue unaffected.<p>
+
+MPI_Finalize will generally be called always and only this way:<p>
+
+<dl><dl>
+<pre>
+
+     /* At the very end of function main() above... */
+
+   MPI_Finalize();
+}
+                                  /* End of Program */
+</pre>
+</dl></dl>
+
+MPI_Finalize finalizes your program in the same way that 
+<a href="MPI_Init.html">MPI_Init</a> initializes it.
+There's not much else to say.<p>
+
+

@@ -1,0 +1,81 @@
+<title>MPI Library Reference: MPI_Reduce</title>
+
+<h2>MPI_Reduce</h2>
+
+This function reduces a set of messages from all other processes in the group
+into one message for the "root" process.<p>
+
+<p>
+
+<h3>Prototype:</h3>
+
+<dl>
+<dt><b>MPI_Reduce(void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype,</b>
+<dd><b>MPI_Op op, int root, MPI_Comm comm);</b>
+</dl>
+
+This routine can be seen as the opposite of 
+<a href="MPI_Bcast.html">MPI_Bcast</a>.  It should be run on all processes 
+simultaneously; every process submits a value (given in 'sendbuf').  These are 
+combined through some operation (eg. addition); the combined value is
+stored in a buffer on the 'root' node (given by 'recvbuf').  Note that 
+the root node both sends and receives a value.<p>
+
+Specifically:
+
+<dl>
+<dt><b>void *sendbuf</b>:
+<dd>This pointer should point to the data to be sent to the other processes.  
+
+<dt><b>void *recvbuf</b>:
+<dd>For the root process, this pointer should point to the buffer for 
+the data to be received from to the other processes.  This parameter is
+unused for non-root processes.
+
+<dt><b>int count</b>:
+<dd>This integer should tell how many elements of data you are reducing.
+Each element will be reduced separately.
+
+<dt><b>MPI_Datatype datatype</b>:
+<dd>Here is where you tell MPI what type of data you are sending or 
+receiving.  There are specially defined constants for all the standard 
+C types, like MPI_INT and MPI_DOUBLE.  
+
+<dt><b>MPI_Op op</b>:
+<dd>This defines the type of operation performed to reduce all the messages
+into one message.  For example, you can use MPI_SUM to sum all of the 
+values from the other process into one value for the root process.
+
+<dt><b>int root</b>:
+<dd>This integer should specify the index of the "root" process.  MPI
+will use this number to figure out where to collect the reduced value.
+
+<dt><b>MPI_Comm comm</b>:
+<dd>Next we have the <i>Comm</i> variable that we've seen in 
+<a href="MPI_Comm_rank.html">MPI_Comm_rank</a> and 
+<a href="MPI_Comm_size.html">MPI_Comm_size</a>; for now you can just 
+ignore it and pass in "MPI_COMM_WORLD", but it is in fact useful if 
+you intend to limit reduce operations to only certain groups of nodes.<p>
+
+</dl>
+
+<hr><p>
+
+<h3>Examples</h3>
+
+<dl>
+<dt>To reduce (by summation) an array of five integers from the array 
+    called "rc_arr" on all processes into the array "rc_new" on process zero:
+<dd><pre>
+MPI_Reduce(rc_arr, rc_new, 5, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+</pre>
+
+<dt>To reduce (by summation) a single double from the variable "x" on all
+    processes into the variable "sumx" on process one:
+<dd><pre>
+MPI_Reduce(&x, &sumx, 1, MPI_DOUBLE, MPI_SUM, 1, MPI_COMM_WORLD);
+</pre>
+</dl>
+
+<hr>
+

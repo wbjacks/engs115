@@ -1,0 +1,105 @@
+<title>MPI Library Reference: MPI_Recv</title>
+
+<h2>MPI_Recv</h2>
+
+This function allows one process to wait and collect data from 
+another process.<p>
+
+
+<h3>Prototype:</h3>
+
+<dl>
+<dt><b>MPI_Recv(void *buf, int count, MPI_Datatype datatype, int source</b>
+<dd><b>int tag, MPI_Comm comm, MPI_Status *status);</b>
+</dl>
+
+This function will allow any process to wait for data from another 
+process; let "buf" point to space for the data you want to receive, and 
+let "source" be the number of the process you want to send it to you.<p>
+
+Specifically:
+
+<dl><dt><b>void *buf</b>:
+<dd>This void pointer should point to the beginning of some space where 
+you'd like the received data to be stored.  For example, if you expected 
+to receive an array of integers, and had declared space for an array 
+called "rc_arr", you'd probably want to pass "<b>rc_arr</b>" in here.<p>
+
+<dt><b>int count</b>:
+<dd>This integer should tell how many elements of data you expect to receive.  
+For example, if you hope to get an array of five integers, this argument 
+should be 5.<p>
+
+<dt><b>MPI_Datatype datatype</b>:
+<dd>Here is where you tell MPI what type of data you are receiving.  There are 
+specially defined constants for all the standard C types.  For example, if you 
+were waiting for an array of ints, you would pass "MPI_INT".  If you were 
+receiving doubles, you'd pass "MPI_DOUBLE", and so on.  You get the idea.<p>
+
+<dt><b>int source</b>:
+<dd>This integer should tell from which process you expect the data to come.  
+For example, if you are waiting for data from the process with rank 1, you'd 
+send in a 1.  Sending in the integer MPI_ANY_SOURCE will accept a message from
+any node.<p>
+
+<dt><b>int tag</b>:
+<dd>This parameter allows you to specify that you are waiting only for 
+messages with a specific tag.  (See the desciption on 
+<a href="MPI_Send.html#tag">tag</a> for the 
+<a href="MPI_Send.html">MPI_Send</a> command).  This is not really a very 
+useful feature for this function, where we are just transferring data from 
+one process to another.  For now, just tag all your messages with 0, or use
+the integer MPI_ANY_TAG, which will accept any tag.<p>
+
+<dt><b>MPI_Comm comm</b>:
+<dd>Next, there's the same random <i>Comm</i> variable that we've seen in 
+<a href="MPI_Comm_rank.html">MPI_Comm_rank</a> and 
+<a href="MPI_Comm_size.html">MPI_Comm_size</a>; just ignore it and pass in 
+"MPI_COMM_WORLD".<p>
+
+<dt><b>MPI_Status *status</b>:
+<dd>Finally, there's a random status flag that also comes back from the 
+receive operation.  That is, MPI_Recv will put a value into a variable of 
+type "MPI_Status" that it expects you to have declared.  So if your program is 
+going to use MPI_Recv, you must declare a varaible of type "MPI_Status" and pass 
+its address into MPI_Recv every time you call it. <p>
+If you are interested, the MPI_Status thing is actually a structure which MPI_Recv
+will fill with some useful information.  Specifically, if "stat" is a 
+variable of type MPI_Status, and you've passed "&amp;stat" into MPI_Recv, then 
+"stat.MPI_SOURCE" and "stat.MPI_TAG" will tell you the source node and tag, 
+respectively, of the message you just received. <p>
+</dl>
+
+<p>
+
+<h3>Examples</h3>
+
+(In these examples, "status" is a variable of type "MPI_Status".)<p>
+
+<dl>
+<dt>To get an array of five integers into the array called "rc_arr" from 
+    process one:
+<dd><pre>
+MPI_Recv(rc_arr, 5, MPI_INT, 1, 0,
+         MPI_COMM_WORLD, &status);
+</pre>
+<dt>To receive a single double into "x" from process seven:
+<dd><pre>
+MPI_Recv(&x, 1, MPI_DOUBLE, 7, 0,
+         MPI_COMM_WORLD, &status);
+</pre>
+</dl>
+
+<p>
+
+Finally, note that this MPI_Recv command will wait until the data that has been 
+requested actually comes in.  That is, if process 3 decided to run the first 
+example MPI_Recv command above, it would stop there and hold until process 1, 
+running on another machine, decided to run a corresponding 
+<a href="MPI_Send.html">MPI_Send</a> command to send data to process 3.<p>
+
+At that point, the data would be transfered, and both processes 1 and 3 would 
+continue.  However, this feature demands that you be careful from where you 
+request data; if a process were to wait for data from a process that was never 
+going to send it any, it would be stuck.<p>
+
