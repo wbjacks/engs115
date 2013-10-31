@@ -45,10 +45,12 @@ int runWkMan(int argc, char *argv[]) {
 
     if (rank == 0) {
         // Manager
-        // Send OK message to each worker
-        for (i = 1; i < size; i++)
+        // Send OK message to each worker, wait for OK response
+        for (i = 1; i < size; i++) {
             MPI_OPEN_SEND((void *)&msg, i);
+            MPI_OPEN_RECV(buff, st);
 
+        }
     }
     else {
         // Worker
@@ -58,6 +60,9 @@ int runWkMan(int argc, char *argv[]) {
         // When received from manager, print and return
         printf("Hello world! This is worker %d of %d.\n", rank, (size-1));
         fflush(stdout);
+
+        // Send ok to manager
+        MPI_OPEN_SEND((void *)&msg, 0);
 
     }
     // Exit
