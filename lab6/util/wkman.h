@@ -6,7 +6,7 @@
 #include "../util/macros.h"
 
 // Defines
-#define WK_DONE 0
+#define WK_DONE 03
 #define WK_KILL 1
 #define NO_MSG -1
 

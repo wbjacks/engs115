@@ -98,6 +98,13 @@ static void manager(int size, void (*fp)(void *qp)) {
     void *buff;
     MPI_Status st;
 
+    // Open shit
+
+    // Run partitioner-> REACH do this in a thread
+    // When returned, everything will be fully partitioned
+
+    // 
+
     // Make space in buff
     buff = malloc(1 * sizeof(int));
 
