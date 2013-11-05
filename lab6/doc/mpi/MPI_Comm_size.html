@@ -1,0 +1,49 @@
+<title>MPI Library Reference: MPI_Comm_size</title>
+<h2>MPI_Comm_size</h2>
+
+This function determines the number of machines being used, and returns it in
+its second argument.<p>
+
+<hr>
+
+<h3>Prototype:</h3>
+
+<b>MPI_Comm_size(MPI_Comm comm, int *size);</b><p>
+
+When an MPI program is run with N machines, an identical copy of the 
+program is started simultaneously on all of the N machines, numbered 0 
+through N-1.  This function lets any one of the processes find out how 
+many machines there are.  The value N will be returned in the integer pointed
+to by "size".<p>
+
+The first argument, the MPI_Comm thing, is more confusing.  For now, just 
+ignore it, and send in "MPI_COMM_WORLD".<p>
+
+<hr>
+
+MPI_Comm_size should be called fairly early in the program because the 
+information it returns (how many machines there are) is very useful.  A 
+parallel program accomplishes its task by dividing a task among many 
+machines.  Therefore, it makes sense that your process would need to know 
+fairly soon how many machines there are so it can figure out into how many 
+pieces the problem needs to be split.<p>
+
+Usually, in fact, the first three lines of your program will be as follows:<p>
+
+<pre>
+main(int argc, char **argv)
+{
+   int rank,total;
+
+   <a href="MPI_Init.html">MPI_Init</a>(&argc,&argv);
+   <a href="MPI_Comm_rank.html">MPI_Comm_rank</a>(MPI_COMM_WORLD, &rank);
+   <a href="MPI_Comm_size.html">MPI_Comm_size</a>(MPI_COMM_WORLD, &total);
+
+     /* Now main knows how many machines there are (total),
+           and which of those this instance of it 
+           is running on (rank).                         */
+     /* Continue with rest of main() below... */
+
+</pre>
+
+

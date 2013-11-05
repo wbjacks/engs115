@@ -1,0 +1,54 @@
+<title>MPI Library Reference: MPI_Iprobe</title>
+
+<h2>MPI_Iprobe</h2>
+
+This function probes the message system to see if a message has
+arrived without recieving the message, thereby allowing a process to
+interleave local computation with message handling. .<p>
+
+<hr><p>
+
+<h3>Prototype:</h3>
+
+<b>int MPI_Iprobe(int source, int tag, MPI_Comm comm, int *flag, MPI_Status *status);</b><p>
+
+The flag argument is used to see if a message with specified source and/or
+tag has arrived. If there is a message, when the source is
+MPI_ANY_SOURCE and/or the tag is MPI_ANY_TAG, then the returned status
+can be used to determin the source and/or tag of the message in the
+usual manner. To obtain the length of the message, an associated
+helper function is used:<p>
+
+<b>int MPI_Get_count(MPI_Status status, MPI_Datatype datatype, int *count);</b><p>
+
+
+
+<hr>
+<p>
+These functions are generally used in the following manner:<p>
+
+<pre>
+MPI_Status status;
+int flag, count, *buf, tag, source;
+
+flag=FALSE;
+MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &flag, &status);
+if(flag==TRUE) {
+  source = status.MPI_SOURCE;
+  tag = status.MPI_TAG;
+  /* check the tag and source here if needed */
+  MPI_Get_count(status, MPI_INT, &count);
+  buf=malloc(count*sizeof(MPI_INT));
+  MPI_Recv(buf, count, MPI_INT, source, MPI_COMM_WORLD, &status);
+  go_do_something_with_message(buf);
+}
+else {
+  do_something_else();
+}
+
+
+
+</pre>
+
+
+
