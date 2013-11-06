@@ -8,13 +8,6 @@
 #define public
 #define private static
 
-// Structs
-struct __pqueue {
-    void *queue;
-    pthread_mutex_t lock;// = PTHREAD_MUTEX_INITIALIZER;
-
-};
-typedef struct __pqueue PQueue_t;
 
 // Prototypes
 /* create an empty queue */
@@ -23,11 +16,11 @@ public void* pqopen(void);
 /* deallocate a queue, assuming every element has been removed and deallocated */
 public void pqclose(void *qp);   
 
-/* put element at end of queue */
-public void pqput(void *qp, void *elementp); 
+/* put element at end of queue with specified size */
+public void pqput(void *qp, void *elementp, size_t size); 
 
-/* get first element from a queue */
-public void* pqget(void *qp);
+/* get first element from a queue, size is filled in */
+public void* pqget(void *qp, size_t *size);
 
 /* apply a void function (e.g. a printing fn) to every element of a queue */
 public void pqapply(void *qp, void (*fn)(void* elementp));

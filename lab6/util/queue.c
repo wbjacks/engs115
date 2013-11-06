@@ -19,6 +19,7 @@
    controlled through the functions listed in queue.h */
 struct __queue_element {
     void *element;
+    size_t size;
     struct __queue_element *prev;
     struct __queue_element *next;
 
@@ -46,7 +47,7 @@ public void qclose(void *qp) {
 
 }
 
-public void qput(void *qp, void *elementp) {
+public void qput(void *qp, void *elementp, size_t size) {
     Queue_Element_t *pt;
     Queue_Element_t *entry;
 
@@ -54,6 +55,7 @@ public void qput(void *qp, void *elementp) {
     entry = (Queue_Element_t *)malloc(sizeof(Queue_Element_t));
     memset(entry, 0, sizeof(Queue_Element_t));
     entry->element = elementp;
+    entry->size = size;
 
     /* Check empty */
     if (((Queue_t *)qp)->first == NULL && ((Queue_t *)qp)->last == NULL) {
@@ -71,7 +73,7 @@ public void qput(void *qp, void *elementp) {
     }
 }
 
-public void* qget(void *qp) {
+public void* qget(void *qp, size_t *size) {
     Queue_Element_t *pt;
     void *ept;
 
@@ -80,6 +82,7 @@ public void* qget(void *qp) {
 
     ept = ((Queue_t *)qp)->first->element;
     pt = ((Queue_t *)qp)->first;
+    *size = pt->size;
     ((Queue_t *)qp)->first = ((Queue_t *)qp)->first->next;
     if (((Queue_t *)qp)->first != NULL) {
         ((Queue_t *)qp)->first->prev = NULL;
@@ -90,6 +93,7 @@ public void* qget(void *qp) {
         ((Queue_t *)qp)->last = NULL;
 
     }
+    
     free(pt);
     return ept;
 

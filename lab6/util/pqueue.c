@@ -1,4 +1,5 @@
 /******************************************************************************/
+/* Structures */
 /*                                                                            */
 /* File: queue.c                                                              */
 /* Author: Will Jackson '14                                                   */
@@ -11,10 +12,17 @@
 /* Includes */
 #include "./pqueue.h"
 
-/* Structures */
 /* Queue will be implemented as a generic linked list, the inner workings of
    which can't be seen outside of this file. That is, everything can be simply
    controlled through the functions listed in queue.h */
+
+// Internal Structures
+struct __pqueue {
+    void *queue;
+    pthread_mutex_t lock;// = PTHREAD_MUTEX_INITIALIZER;
+
+};
+typedef struct __pqueue PQueue_t;
 
 public void *pqopen(void) {
     PQueue_t *qp;
@@ -31,18 +39,18 @@ public void pqclose(void *qp) {
 
 }
 
-public void pqput(void *qp, void *elementp) {
+public void pqput(void *qp, void *elementp, size_t size) {
     pthread_mutex_lock(&(((PQueue_t *)qp)->lock));
-    qput(((PQueue_t *)qp)->queue, elementp);
+    qput(((PQueue_t *)qp)->queue, elementp, size);
     pthread_mutex_unlock(&(((PQueue_t *)qp)->lock));
 
 }
 
-public void* pqget(void *qp) {
+public void* pqget(void *qp, size_t *size) {
     void *ept;
 
     pthread_mutex_lock(&(((PQueue_t *)qp)->lock));
-    ept = qget(((PQueue_t *)qp)->queue);
+    ept = qget(((PQueue_t *)qp)->queue, size);
     pthread_mutex_unlock(&(((PQueue_t *)qp)->lock));
     return ept;
 

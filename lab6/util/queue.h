@@ -18,10 +18,10 @@ public void* qopen(void);
 public void qclose(void *qp);   
 
 /* put element at end of queue */
-public void qput(void *qp, void *elementp); 
+public void qput(void *qp, void *elementp, size_t size); 
 
 /* get first element from a queue */
-public void* qget(void *qp);
+public void* qget(void *qp, size_t *size);
 
 /* apply a void function (e.g. a printing fn) to every element of a queue */
 public void qapply(void *qp, void (*fn)(void* elementp));
