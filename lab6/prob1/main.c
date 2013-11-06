@@ -5,12 +5,16 @@
 
 // Defines
 #define PARTITION_MULTIPLIER 10
+#define START 2.0
+#define END 3.0
+#define NUM_MAIN_PARTITIONS 100
 
 // Statics
 static void *calc(void *in, size_t *size);
 static void part(void *args);
 static void synth(void *in, void *acc);
 static void *acc(void);
+static void *pargs(void);
 static void out(void *in);
 static double f(double t);
 
@@ -33,7 +37,8 @@ typedef struct __part_input PartInput_t;
 
 int main(int argc, char *argv[]) {
     // call runWkMan with provided partitioner and calculator
-    runWkMan(argc, argv, acc, calc, part, synth, out);
+    // Build partition args
+    runWkMan(argc, argv, pargs, acc, calc, part, synth, out);
 
 }
 
@@ -81,6 +86,17 @@ static void synth(void *in, void *acc) {
 
 static void *acc(void) {
     return malloc(sizeof(double));
+
+}
+
+static void *pargs(void) {
+    PartInput_t *ret;
+    ret = malloc(sizeof(PartInput_t));
+    ret->start = START;
+    ret->end = END;
+    ret->qp = pqopen();
+    ret->m = NUM_MAIN_PARTITIONS;
+    return (void *)ret;
 
 }
 

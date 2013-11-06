@@ -19,7 +19,7 @@
 // Internal Structures
 struct __pqueue {
     void *queue;
-    pthread_mutex_t lock;// = PTHREAD_MUTEX_INITIALIZER;
+    pthread_mutex_t lock;
 
 };
 typedef struct __pqueue PQueue_t;

@@ -12,13 +12,14 @@ typedef struct __wk_data WkData_t;
 
 // Statics
 static void worker(int size, int rank, void *(*calc)(void *, size_t *size));
-static void manager(int size, void (*partitioner)(void *qp));
+static void manager(int size, void (*partitioner)(void *qp), void *(*part_args)(void));
 static void synthesizer(void *(*acc)(void), void (*synth)(void *, void *), void (*out)(void *));
 static void *pack(WkData_t *package);
 static WkData_t *unpack(void *buff);
 
 int runWkMan(int argc,
              char *argv[],
+             void *(*part_args)(void),
              void *(*acc)(void),
              void *(*calc)(void *, size_t *size),
              void (*part)(void *),
@@ -34,15 +35,15 @@ int runWkMan(int argc,
     // Get PID, num proc
     MPI_RANK_SIZE(&rank, &size);
 
+    // Launch
     if (rank == 0)
-        manager(size, part);
+        manager(size, part, part_args);
 
     else if(rank == (size -1))
         synthesizer(acc, synth, out);
 
     else 
         worker(size, rank, calc);
-
  
     // Exit
     MPI_Finalize();
@@ -108,7 +109,7 @@ static void worker(int size, int rank, void *(*calc)(void *, size_t *size)) {
 
 }
 
-static void manager(int size, void (*partitioner)(void *qp)) {
+static void manager(int size, void (*partitioner)(void *qp), void *(*part_args)(void)) {
     int done_workers;
     void *buff;
     void *qp;
@@ -122,7 +123,7 @@ static void manager(int size, void (*partitioner)(void *qp)) {
     qp = pqopen();
 
     // Run partitioner-> REACH do this in a thread
-    partitioner(qp);
+    partitioner(part_args());
 
     // When returned, everything will be fully partitioned
 
@@ -200,24 +201,29 @@ static void synthesizer(void *(*acc)(void), void (*synth)(void *, void *), void 
 // Function deep copys a WkData_t struct into a plain 'ol buffer
 static void *pack(WkData_t *package) {
     void *ret;
+    char *pt;
 
     // Check size of data in package for overflow. If this happens, def. panic
     if (package->pkg_size > MAX_PKG_SIZE) {
-        fprintf(stderr, "FATAL ERROR: Attempt to send too much data.\n");
+        fprintf(stderr, "FATAL ERROR: Attempt to send %d ", (int)package->pkg_size);
+        fprintf(stderr, " bytes, which is over the max allowed bytes.\n");
         return NULL;
 
     }
-
     // Create buffer
-    ret = malloc(2*sizeof(int) + sizeof(package->pkg_size));
+    ret = malloc(sizeof(int) + sizeof(size_t) + sizeof(package->pkg_size));
+    pt = ret;
 
     // Copy message
     ret = malloc(1 * sizeof(int));
-    memcpy(ret, (void *)&(package->msg), sizeof(int));
+    memcpy(pt, (void *)&(package->msg), sizeof(int));
+    pt += sizeof(int);
 
     // Copy pkg
-    memcpy(ret, (void *)&(package->pkg_size), sizeof(int));
-    memcpy(ret, package->pkg, package->pkg_size);
+    memcpy(pt, (void *)&(package->pkg_size), sizeof(size_t));
+    pt += sizeof(size_t);
+    memcpy(pt, package->pkg, package->pkg_size);
+    pt += sizeof(package->pkg_size);
 
     // Return
     return ret;
@@ -236,12 +242,13 @@ static WkData_t *unpack(void *buff) {
     // Copy message, size
     memcpy((void *)&(ret->msg), pt, sizeof(int));
     pt += sizeof(int);
-    memcpy((void *)&(ret->pkg_size), pt, sizeof(int));
-    pt += sizeof(int);
+    memcpy((void *)&(ret->pkg_size), pt, sizeof(size_t));
+    pt += sizeof(size_t);
 
     // Check pkg size. Same panic rule as above
     if (ret->pkg_size > MAX_PKG_SIZE) {
-        fprintf(stderr, "FATAL ERROR: Attempt to recv too much data.\n");
+        fprintf(stderr, "FATAL ERROR: Attempt to recv %d ", (int)ret->pkg_size);
+        fprintf(stderr, " bytes, which is over the max allowed bytes.\n");
         return NULL;
 
     }
