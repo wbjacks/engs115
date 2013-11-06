@@ -10,9 +10,16 @@
 #define WK_DONE 0
 #define WK_KILL 1
 #define WK_READY 2
+#define SN_GO 3
 #define NO_MSG -1
 
 #define MAX_PKG_SIZE 100
 
 // Prototypes
-int runWkMan(int argc, char *argv[]);
+int runWkMan(int argc,
+             char *argv[],
+             void *acc,
+             void *(*calc)(void *),
+             void (*part)(void *),
+             void (*synth)(void *, void *),
+             void (*out)(void *));

@@ -15,7 +15,14 @@ struct __wk_data {
 };
 typedef struct __wk_data WkData_t;
 
-int runWkMan(int argc, char *argv[], void *(*fp)(void *)) {
+int runWkMan(int argc,
+             char *argv[],
+             void *(*acc)(void),
+             void *(*calc)(void *),
+             void (*part)(void *),
+             void (*synth)(void *, void *),
+             void (*out)(void *))
+{
     // Begin MPI
     MPI_Init(&argc, &argv);
 
@@ -25,13 +32,16 @@ int runWkMan(int argc, char *argv[], void *(*fp)(void *)) {
     // Get PID, num proc
     MPI_RANK_SIZE(&rank, &size);
 
-    if (rank == 0) {
-        manager(size);
-    }
-    else {
-        worker(size, rank, fp);
+    if (rank == 0)
+        manager(size, part);
 
-    }
+    else if(rank == (size -1))
+        synthesizer(acc, synth);
+
+    else 
+        worker(size, rank, calc);
+
+ 
     // Exit
     MPI_Finalize();
     return 0;
@@ -97,7 +107,7 @@ static void worker(int size, int rank, void *(*task)(void *)) {
 
 }
 
-static void manager(int size, void (*partitioner)(void *qp)) {
+static void manager(int size, void (*partitioner)(void *qp), ) {
     int i;
     int done_workers;
     int qval_size;
@@ -117,7 +127,7 @@ static void manager(int size, void (*partitioner)(void *qp)) {
     // When returned, everything will be fully partitioned
 
     // Loop until workers done
-    while (done_workers < (size-1)) {
+    while (done_workers < (size-2)) {
         // Receive message, check
         buff = malloc(MAX_PKG_SIZE);
         MPI_OPEN_RECV(buff, &st, MAX_PKG_SIZE);
@@ -127,6 +137,9 @@ static void manager(int size, void (*partitioner)(void *qp)) {
             done_workers++;
 
         else {
+            // Run synthesis routine
+            
+
             // Grab value from queue
             qval = qget(qp, &qval_size);
             if (!qval) {
@@ -150,6 +163,36 @@ static void manager(int size, void (*partitioner)(void *qp)) {
     }
     // Cleanup and return
     qclose(qp);
+    return;
+
+}
+
+static void synthesizer(void *(*acc)(void), void (*synth)(void *, void *), void (*out)(void *)) {
+    // Manages program output
+    void *buff;
+    void *accumulator = acc();
+    MPI_status st;
+    WorkerData_t *package;
+    buff = malloc(MAX_PKG_SIZE);
+
+    for (;;) {
+        // Get input from manager
+        MPI_OPEN_RECV(buff, &st, MAX_PKG_SIZE);
+        package = unpack(buff);
+        memset(buff, 0, MAX_PKG_SIZE);
+
+        // Break if msg is SN_GO
+        if (package->msg == SN_GO) break;
+
+        // Run synthesis on manager data
+        fp(package->pkg, accumulator);
+
+    }
+    // Everything has exited, do output
+    out(accumulator);
+
+    // Cleanup and return
+    free(buff);
     return;
 
 }
