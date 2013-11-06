@@ -1,12 +1,14 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include "../util/wkman.h"
+#include "../util/pqueue.h"
 
 // Defines
 #define PARTITION_MULTIPLIER 10
 
 // Statics
-static void *calc();
-static void part();
+static void *calc(void *in, size_t *size);
+static void part(void *args);
 static void synth(void *in, void *acc);
 static void *acc(void);
 static void out(void *in);
@@ -16,13 +18,14 @@ static double f(double t);
 struct __partition {
     double a;
     double b;
-    double p;
 
 };
 typedef struct __partition Partition_t;
 
 struct __part_input {
     void *qp;
+    double start;
+    double end;
     int m;
 
 };
@@ -46,9 +49,8 @@ static void part(void *args) {
         partition = (Partition_t *)malloc(sizeof(Partition_t));
         partition->a = input->start + i * step;
         partition->b = input->start + (i+1) * step;
-        partition->p = input->p;
 
-        qput(input->queue->qp, (void *)partition, sizeof(Partition_t));
+        pqput(input->qp, (void *)partition, sizeof(Partition_t));
 
     }
     // Cleanup and return
@@ -56,16 +58,17 @@ static void part(void *args) {
 
 }
 
-static void *calc(void *in) {
+static void *calc(void *in, size_t *size) {
     double *ret;
     double t;
-    Partition_t partition = (Partition_t *)in;
+    Partition_t *partition = (Partition_t *)in;
     ret = malloc(sizeof(double));
 
     // Run calculation
     t = partition->b - partition->a;
     *ret = 0.5 * t * (f(partition->b) + f(partition->a));
 
+    *size = sizeof(double);
     return (void *)ret;
 
 }

@@ -8,7 +8,6 @@
 #define public
 #define private static
 
-
 // Prototypes
 /* create an empty queue */
 public void* pqopen(void);        

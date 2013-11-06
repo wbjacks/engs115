@@ -1,24 +1,26 @@
 #include "wkman.h"
 
-// Statics
-static void worker(int size, int rank);
-static void manager(int size);
-static void *pack(struct __wk_data *package);
-static struct __wk_data *unpack(void *package, size_t size);
 
 // Internal Structures
 struct __wk_data {
     int msg;
-    int pkg_size;
+    size_t pkg_size;
     void *pkg;
 
 };
 typedef struct __wk_data WkData_t;
 
+// Statics
+static void worker(int size, int rank, void *(*calc)(void *, size_t *size));
+static void manager(int size, void (*partitioner)(void *qp));
+static void synthesizer(void *(*acc)(void), void (*synth)(void *, void *), void (*out)(void *));
+static void *pack(WkData_t *package);
+static WkData_t *unpack(void *buff);
+
 int runWkMan(int argc,
              char *argv[],
              void *(*acc)(void),
-             void *(*calc)(void *),
+             void *(*calc)(void *, size_t *size),
              void (*part)(void *),
              void (*synth)(void *, void *),
              void (*out)(void *))
@@ -36,7 +38,7 @@ int runWkMan(int argc,
         manager(size, part);
 
     else if(rank == (size -1))
-        synthesizer(acc, synth);
+        synthesizer(acc, synth, out);
 
     else 
         worker(size, rank, calc);
@@ -48,19 +50,18 @@ int runWkMan(int argc,
 
 }
 
-static void worker(int size, int rank, void *(*task)(void *)) {
-    int msg;  
+static void worker(int size, int rank, void *(*calc)(void *, size_t *size)) {
     int kill = FALSE;
-    int ret_pkg_size;
     void *buff;
     void *ret_pkg;
+    size_t ret_pkg_size;
     MPI_Status st;
     WkData_t *data;
     WkData_t ret_data;
 
     // Send initial ready message
     ret_data.msg = WK_READY;
-    buff = pack(ret_data);
+    buff = pack(&ret_data);
     MPI_OPEN_SEND(buff, 0, MAX_PKG_SIZE);
 
     // Loop until kill is set
@@ -83,13 +84,13 @@ static void worker(int size, int rank, void *(*task)(void *)) {
         }
         else {
             // If message is empty, throw pkg at the supplied task
-            ret_pkg = task(data->pkg, &ret_pkg_size);
+            ret_pkg = calc(data->pkg, &ret_pkg_size);
 
             // Pack data 
             ret_data.msg = WK_READY;
             ret_data.pkg_size = ret_pkg_size;
             ret_data.pkg = ret_pkg;
-            buff = pack(ret_data);
+            buff = pack(&ret_data);
 
             // Send data back
             MPI_OPEN_SEND(buff, 0, MAX_PKG_SIZE);
@@ -101,19 +102,18 @@ static void worker(int size, int rank, void *(*task)(void *)) {
     }
     // Kill has been set... clean up and die in peace
     ret_data.msg = WK_DONE;
-    buff = pack(ret_data);
+    buff = pack(&ret_data);
     MPI_OPEN_SEND(buff, 0, MAX_PKG_SIZE);
     return;
 
 }
 
-static void manager(int size, void (*partitioner)(void *qp), ) {
-    int i;
+static void manager(int size, void (*partitioner)(void *qp)) {
     int done_workers;
-    int qval_size;
     void *buff;
     void *qp;
     void *qval;
+    size_t qval_size;
     MPI_Status st;
     WkData_t *data;
     WkData_t ret_data;
@@ -145,7 +145,7 @@ static void manager(int size, void (*partitioner)(void *qp), ) {
             if (!qval) {
                 // If queue value is NULL, send WK_KILL
                 ret_data.msg = WK_KILL;
-                buff = pack(ret_data);
+                buff = pack(&ret_data);
 
             }
             else {
@@ -171,8 +171,8 @@ static void synthesizer(void *(*acc)(void), void (*synth)(void *, void *), void 
     // Manages program output
     void *buff;
     void *accumulator = acc();
-    MPI_status st;
-    WorkerData_t *package;
+    MPI_Status st;
+    WkData_t *package;
     buff = malloc(MAX_PKG_SIZE);
 
     for (;;) {
@@ -185,7 +185,7 @@ static void synthesizer(void *(*acc)(void), void (*synth)(void *, void *), void 
         if (package->msg == SN_GO) break;
 
         // Run synthesis on manager data
-        fp(package->pkg, accumulator);
+        synth(package->pkg, accumulator);
 
     }
     // Everything has exited, do output
@@ -198,7 +198,7 @@ static void synthesizer(void *(*acc)(void), void (*synth)(void *, void *), void 
 }
 
 // Function deep copys a WkData_t struct into a plain 'ol buffer
-static void *pack(struct __wk_data *package) {
+static void *pack(WkData_t *package) {
     void *ret;
 
     // Check size of data in package for overflow. If this happens, def. panic
@@ -225,18 +225,18 @@ static void *pack(struct __wk_data *package) {
 }
 
 // Function rebuids struct from flat buffer
-static struct __wk_data *unpack(void *buff) {
+static WkData_t *unpack(void *buff) {
     WkData_t *ret;
     void *pkg_space;
-    void *pt = buff;
+    char *pt = (void *)buff;
 
     // Create struct
     ret = malloc(sizeof(WkData_t));
 
     // Copy message, size
-    memcpy(ret->msg, pt, sizeof(int));
+    memcpy((void *)&(ret->msg), pt, sizeof(int));
     pt += sizeof(int);
-    memcpy(ret->pkg_size, pt, sizeof(int));
+    memcpy((void *)&(ret->pkg_size), pt, sizeof(int));
     pt += sizeof(int);
 
     // Check pkg size. Same panic rule as above

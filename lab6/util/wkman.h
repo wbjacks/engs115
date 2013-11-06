@@ -18,8 +18,8 @@
 // Prototypes
 int runWkMan(int argc,
              char *argv[],
-             void *acc,
-             void *(*calc)(void *),
+             void *(*acc)(void),
+             void *(*calc)(void *, size_t *size),
              void (*part)(void *),
              void (*synth)(void *, void *),
              void (*out)(void *));
