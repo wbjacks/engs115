@@ -4,10 +4,12 @@
 #include <string.h>
 #include <mpi.h>
 #include "../util/macros.h"
+#include "../util/pqueue.h"
 
 // Defines
-#define WK_DONE 03
+#define WK_DONE 0
 #define WK_KILL 1
+#define WK_READY 2
 #define NO_MSG -1
 
 #define MAX_PKG_SIZE 100

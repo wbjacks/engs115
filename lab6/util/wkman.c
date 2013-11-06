@@ -39,7 +39,7 @@ int runWkMan(int argc, char *argv[], void *(*fp)(void *)) {
 }
 
 static void worker(int size, int rank, void *(*task)(void *)) {
-    int msg = 1;  
+    int msg;  
     int kill = FALSE;
     int ret_pkg_size;
     void *buff;
@@ -48,15 +48,18 @@ static void worker(int size, int rank, void *(*task)(void *)) {
     WkData_t *data;
     WkData_t ret_data;
 
-    // Make space in buff 
-    buff = malloc(MAX_PKG_SIZE);
+    // Send initial ready message
+    ret_data.msg = WK_READY;
+    buff = pack(ret_data);
+    MPI_OPEN_SEND(buff, 0, MAX_PKG_SIZE);
 
     // Loop until kill is set
     while (!kill) {
         // Wait for message from manager, unpack, clear buffer
+        buff = malloc(MAX_PKG_SIZE);
         MPI_OPEN_RECV(buff, &st, MAX_PKG_SIZE);
         data = unpack(buff);
-        memset(buff, 0, MAX_PKG_SIZE);
+        free(buff);
 
         // Recieved message... open
         if (data->msg != NO_MSG) {
@@ -73,7 +76,7 @@ static void worker(int size, int rank, void *(*task)(void *)) {
             ret_pkg = task(data->pkg, &ret_pkg_size);
 
             // Pack data 
-            ret_data.msg = WK_DONE;
+            ret_data.msg = WK_READY;
             ret_data.pkg_size = ret_pkg_size;
             ret_data.pkg = ret_pkg;
             buff = pack(ret_data);
@@ -82,39 +85,72 @@ static void worker(int size, int rank, void *(*task)(void *)) {
             MPI_OPEN_SEND(buff, 0, MAX_PKG_SIZE);
 
             // Cleanup
-            memset(buff, 0, MAX_PKG_SIZE);
-            memset(ret_pkg, 0, sizeof());
-           
+            memset(ret_pkg, 0, ret_pkg_size);
+
         }
     }
     // Kill has been set... clean up and die in peace
-    free(buff);
+    ret_data.msg = WK_DONE;
+    buff = pack(ret_data);
+    MPI_OPEN_SEND(buff, 0, MAX_PKG_SIZE);
     return;
 
 }
 
-static void manager(int size, void (*fp)(void *qp)) {
+static void manager(int size, void (*partitioner)(void *qp)) {
     int i;
+    int done_workers;
+    int qval_size;
     void *buff;
+    void *qp;
+    void *qval;
     MPI_Status st;
+    WkData_t *data;
+    WkData_t ret_data;
 
     // Open shit
+    qp = pqopen();
 
     // Run partitioner-> REACH do this in a thread
+    partitioner(qp);
+
     // When returned, everything will be fully partitioned
 
-    // 
+    // Loop until workers done
+    while (done_workers < (size-1)) {
+        // Receive message, check
+        buff = malloc(MAX_PKG_SIZE);
+        MPI_OPEN_RECV(buff, &st, MAX_PKG_SIZE);
+        data = unpack(buff);
+        free(buff); // error, yo, use realloc
+        if (data->msg == WK_DONE) 
+            done_workers++;
 
-    // Make space in buff
-    buff = malloc(1 * sizeof(int));
+        else {
+            // Grab value from queue
+            qval = qget(qp, &qval_size);
+            if (!qval) {
+                // If queue value is NULL, send WK_KILL
+                ret_data.msg = WK_KILL;
+                buff = pack(ret_data);
 
-    // Send OK message to each worker, wait for OK response
-    for (i = 1; i < size; i++) {
-        MPI_OPEN_SEND((void *)&msg, i);
-        MPI_OPEN_RECV(buff, &st);
+            }
+            else {
+                // Else, send partition
+                ret_data.msg = NO_MSG;
+                ret_data.pkg_size = qval_size;
+                ret_data.pkg = qval;
+
+            }
+            MPI_OPEN_SEND(buff, (*(int *)data->pkg), MAX_PKG_SIZE);
+
+        }
+        free(data);
 
     }
-    free(buff);
+    // Cleanup and return
+    qclose(qp);
+    return;
 
 }
 
