@@ -14,7 +14,7 @@ static void *calc(void *in, size_t *size);
 static void part(void *args);
 static void synth(void *in, void *acc);
 static void *acc(void);
-static void *pargs(void);
+static void *pargs(void *qp);
 static void out(void *in);
 static double f(double t);
 
@@ -89,19 +89,19 @@ static void *acc(void) {
 
 }
 
-static void *pargs(void) {
+static void *pargs(void *qp) {
     PartInput_t *ret;
     ret = malloc(sizeof(PartInput_t));
     ret->start = START;
     ret->end = END;
-    ret->qp = pqopen();
+    ret->qp = qp;
     ret->m = NUM_MAIN_PARTITIONS;
     return (void *)ret;
 
 }
 
 static void out(void *acc) {
-    printf("The value of the integral is: %f", *((double *)acc));
+    printf("The value of the integral is: %f.\n", *((double *)acc));
     return;
 
 }
