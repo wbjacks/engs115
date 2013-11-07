@@ -10,33 +10,33 @@ struct __wk_data {
 typedef struct __wk_data WkData_t;
 
 // Statics
-static void worker(int size, int rank, void *(*calc)(void *, size_t *size));
-static void manager(int size, void (*partitioner)(void *qp), void *(*part_args)(void *));
-static void synthesizer(void *(*acc)(void), void (*synth)(void *, void *), void (*out)(void *));
+static void worker(int size, int rank, void *(*calc)(int rank, void *, size_t *size));
+static void manager(int size, void *args, void (*partitioner)(void *args, void *qp));
+static void synthesizer(void *acc, void (*synth)(void *, void *), void (*out)(void *));
 static void *pack(WkData_t *package);
 static WkData_t *unpack(void *buff);
 
 int runWkMan(int argc,
              char *argv[],
-             void *(*part_args)(void *),
-             void *(*acc)(void),
-             void *(*calc)(void *, size_t *size),
-             void (*part)(void *),
+             void *pargs,
+             void *acc,
+             void *(*calc)(int rank, void *, size_t *size),
+             void (*part)(void *, void *),
              void (*synth)(void *, void *),
              void (*out)(void *))
 {
-    // Begin MPI
-    MPI_Init(&argc, &argv);
-
-    // Initialize within MPI
     int rank, size;
+    int initialized;
 
-    // Get PID, num proc
+    // Check if initialized
+    MPI_Initialized(&initialized);
+    if (!initialized) MPI_Init(&argc, &argv);
+
     MPI_RANK_SIZE(&rank, &size);
 
     // Launch
     if (rank == 0)
-        manager(size, part, part_args);
+        manager(size, pargs, part);
 
     else if(rank == (size -1))
         synthesizer(acc, synth, out);
@@ -50,7 +50,7 @@ int runWkMan(int argc,
 
 }
 
-static void worker(int size, int rank, void *(*calc)(void *, size_t *size)) {
+static void worker(int size, int rank, void *(*calc)(int rank, void *, size_t *size)) {
     int kill = FALSE;
     void *buff;
     void *r_buff;
@@ -95,7 +95,7 @@ static void worker(int size, int rank, void *(*calc)(void *, size_t *size)) {
         }
         else {
             // If message is empty, throw pkg at the supplied task
-            ret_pkg = calc(data->pkg, &ret_pkg_size);
+            ret_pkg = calc(rank, data->pkg, &ret_pkg_size);
 
             // Pack data, send to sync 
             ret_data.msg = NO_MSG;
@@ -133,7 +133,7 @@ static void worker(int size, int rank, void *(*calc)(void *, size_t *size)) {
 
 }
 
-static void manager(int size, void (*partitioner)(void *qp), void *(*part_args)(void *)) {
+static void manager(int size, void *args, void (*partitioner)(void *args, void *qp)) {
     int done_workers = 0;
     void *buff, *r_buff;
     void *qp;
@@ -149,7 +149,7 @@ static void manager(int size, void (*partitioner)(void *qp), void *(*part_args)(
     qp = pqopen();
 
     // Run partitioner-> REACH do this in a thread
-    partitioner(part_args(qp));
+    partitioner(args, qp);
     //printf("Partitioned!\n");
 
     // Loop until workers done
@@ -211,10 +211,9 @@ static void manager(int size, void (*partitioner)(void *qp), void *(*part_args)(
 
 }
 
-static void synthesizer(void *(*acc)(void), void (*synth)(void *, void *), void (*out)(void *)) {
+static void synthesizer(void *acc, void (*synth)(void *, void *), void (*out)(void *)) {
     // Manages program output
     void *buff;
-    void *accumulator = acc();
     MPI_Status st;
     WkData_t *package;
     buff = malloc(MAX_PKG_SIZE);
@@ -234,12 +233,12 @@ static void synthesizer(void *(*acc)(void), void (*synth)(void *, void *), void 
         if (package->msg == SN_GO) break;
 
         // Run synthesis on manager data
-        synth(package->pkg, accumulator);
+        synth(package->pkg, acc);
         if (package) free(package);
 
     }
     // Everything has exited, do output
-    out(accumulator);
+    out(acc);
 
     // Cleanup and return
     if (buff) free(buff);

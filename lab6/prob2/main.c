@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
+#include <mpi.h>
 #include "../util/wkman.h"
 #include "../util/pqueue.h"
 
@@ -9,11 +10,10 @@
 #define NUM_MAIN_PARTITIONS 10
 
 // Statics
-static void *calc(void *in, size_t *size);
+static void *calc(int rank, void *in, size_t *size);
 static void part(void *args, void *qp);
 static void r_part(double a, double b, double prec, void *qp);
 static void synth(void *in, void *acc);
-static void *acc(void);
 static void out(void *in);
 static double f(double t);
 
@@ -34,22 +34,56 @@ struct __part_input {
 };
 typedef struct __part_input PartInput_t;
 
+struct __calc_output {
+    double val;
+    int rank;
+
+};
+typedef struct __calc_output CalcOutput_t;
+
+struct __accumulator {
+    unsigned int *count;
+    double value;
+    int size;
+
+};
+typedef struct __accumulator Accumulator_t;
+
 int main(int argc, char *argv[]) {
     PartInput_t *parg;
+    Accumulator_t *acc;
+    int size, rank;
 
     if (argc != 4) {
         fprintf(stderr, "Error: Bad arguments. Exiting...\n");
         return EXIT_FAILURE;
 
     }
+    // Begin MPI
+    MPI_Init(&argc, &argv);
+
+    // Get rank / size
+    MPI_RANK_SIZE(&rank, &size);
+
+    // Build partition input
     parg = malloc(sizeof(PartInput_t));
     parg->start = atof(argv[1]);
     parg->end = atof(argv[2]);
     parg->prec = atof(argv[3]);
     parg->m = 10;
+
+    // Build accumulator
+    acc = malloc(sizeof(Accumulator_t));
+    memset(acc, 0, sizeof(Accumulator_t));
+    acc->count = malloc(sizeof(unsigned int) * (size -2));
+    memset(acc->count, 0, (sizeof(unsigned int) * (size -2)));
+    acc->size = size;
+
     // call runWkMan with provided partitioner and calculator
-    // Build partition args
+    // Build partition arg
     runWkMan(argc, argv, parg, acc, calc, part, synth, out);
+
+    // Exit
     return EXIT_SUCCESS;
 
 }
@@ -62,7 +96,8 @@ static void part(void *args, void *qp) {
 
     // Queue loop
     for (i = 0; i < input->m; i++)
-        r_part(input->start + i * step, input->start + (i+1) * step, input->prec, qp);
+        r_part(input->start + i * step, input->start + (i+1) * step,
+            input->prec, qp);
 
     // Cleanup and return
     return;
@@ -91,34 +126,63 @@ static void r_part(double a, double b, double prec, void *qp) {
     }
 }
 
-static void *calc(void *in, size_t *size) {
-    double *ret;
+static void *calc(int rank, void *in, size_t *size) {
     double t;
     Partition_t *partition = (Partition_t *)in;
-    ret = malloc(sizeof(double));
+    CalcOutput_t *ret;
+    ret = malloc(sizeof(CalcOutput_t));
 
     // Run calculation
     t = partition->b - partition->a;
-    *ret = 0.5 * t * (f(partition->b) + f(partition->a));
+    ret->val = 0.5 * t * (f(partition->b) + f(partition->a));
 
-    *size = sizeof(double);
+    *size = sizeof(CalcOutput_t);
+    ret->rank = rank; // I could maybe do this with a tag?
     return (void *)ret;
 
 }
 
 static void synth(void *in, void *acc) {
-    *((double *)acc) += *((double *)in);
+    Accumulator_t *val = (Accumulator_t *)acc;
+    CalcOutput_t *calc = (CalcOutput_t *)in;
+
+    val->count[calc->rank - 1] += 1;
+    val->value += calc->val;
+    
     return;
 
 }
 
-static void *acc(void) {
-    return malloc(sizeof(double));
-
-}
-
 static void out(void *acc) {
-    printf("The value of the integral is: %f.\n", *((double *)acc));
+    unsigned int max;
+    int i, min;
+    double average;
+    Accumulator_t *val = (Accumulator_t *)acc;
+
+    // Set initials
+    max = 0;
+    min = -1;
+    average = 0.0;
+
+    // Calculate max, min, avg (linear search for small values of n)
+    // Hit all but 0 (manager) and (size-1) (synth)
+    for (i = 0; i < (val->size-2); i++) {
+        //printf("Count is: %d.\n", *(val->count+i));
+        // Check max
+        if (max < *(val->count+i))
+            max = *(val->count+i);
+
+        // Check min
+        if (min > *(val->count+i) || min == -1)
+            min = *(val->count+i);
+
+        // Calc running average
+        average += ((double)*(val->count+i)) / ((double)(val->size-2));
+
+    }
+    printf("Max: %u, Min: %d, Average: %f.\n", max, min, average);
+    printf("The value calculated is: %f.\n", val->value);
+    fflush(stdout);
     return;
 
 }
