@@ -4,8 +4,8 @@ LOADERS=-lm
 EXE=p1 p2 p3 p4
 
 UTIL_CFILES=util/wkman.c util/pqueue.c util/queue.c
-UTIL_HFILES=$(UTIL_CFILES:.c:=.h) util/macros.h
-UTIL_OFILES=$(UTIL_CFILES:.c:=.o)
+UTIL_HFILES=util/wkman.h util/pqueue.h util/queue.h util/macros.h
+UTIL_OFILES=util/wkman.o util/pqueue.o util/queue.o
 
 P1_CFILES=$(UTIL_CFILES) prob1/main.c
 P1_HFILES=$(UTIL_HILES)  
@@ -20,8 +20,8 @@ P3_HFILES=$(UTIL_HILES)
 P3_OFILES=$(UTIL_OFILES) prob3/main.o
 
 P4_CFILES=util/pqueue.c util/queue.c prob4/main.c prob4/wkman_optimized.c
-P4_HFILES=$(P4_CFILES:.c:=.h) 
-P4_OFILES=$(P4_CFILES:.c:=.o)
+P4_HFILES=util/pqueue.h util/queue.h prob4/wkman_optimized.h
+P4_OFILES=util/pqueue.o util/queue.o prob4/main.o prob4/wkman_optimized.o
 
 OFILES=$(P1_OFILES) $(P2_OFILES) $(P3_OFILES) $(P4_OFILES)
 HFILES=$(P1_HFILES) $(P2_HFILES) $(P3_HFILES) $(P4_HFILES)
