@@ -1,7 +1,7 @@
 CC=mpicc
 CFLAGS=-std=c99 -Wall -pedantic -ggdb
 LOADERS=-lm
-EXE=p1 p2 p3
+EXE=p1 p2 p3 p4
 
 UTIL_CFILES=util/wkman.c util/pqueue.c util/queue.c
 UTIL_HFILES=$(UTIL_CFILES:.c:=.h) util/macros.h
@@ -19,9 +19,13 @@ P3_CFILES=$(UTIL_CFILES) prob3/main.c
 P3_HFILES=$(UTIL_HILES)  
 P3_OFILES=$(UTIL_OFILES) prob3/main.o
 
-OFILES=$(P1_OFILES) $(P2_OFILES) $(P3_OFILES)
-HFILES=$(P1_HFILES) $(P2_HFILES) $(P3_HFILES)
-CFILES=$(P1_CFILES) $(P2_CFILES) $(P3_CFILES)
+P4_CFILES=$(UTIL_CFILES) prob4/main.c
+P4_HFILES=$(UTIL_HILES)  
+P4_OFILES=$(UTIL_OFILES) prob4/main.o
+
+OFILES=$(P1_OFILES) $(P2_OFILES) $(P3_OFILES) $(P4_OFILES)
+HFILES=$(P1_HFILES) $(P2_HFILES) $(P3_HFILES) $(P4_HFILES)
+CFILES=$(P1_CFILES) $(P2_CFILES) $(P3_CFILES) $(P4_CFILES)
 
 all:	$(EXE)
 
@@ -36,6 +40,9 @@ p2:	$(P2_OFILES) $(P2_HFILES)
 
 p3:	$(P3_OFILES) $(P3_HFILES)
 	$(CC) $(CFLAGS) $(P3_OFILES) -o $@ $(LOADERS)
+
+p4:	$(P4_OFILES) $(P4_HFILES)
+	$(CC) $(CFLAGS) $(P4_OFILES) -o $@ $(LOADERS)
 
 clean:
 	rm -f *~ .*.swp util/.*.swp core $(OFILES) $(EXE)
