@@ -8,8 +8,6 @@ GNUPLOT="set datafile sep ','; set logscale x; plot '$FILE1' u 1:4 w lines, '$FI
 # If files don't exist, create them
 if ! ([ -f $FILE1 ] && [ -f $FILE2 ])
 then
-    echo "Not Exist!"
-    exit
     # Call p3, p4 with increasing values for precision
     for i in $PRECS
     do
