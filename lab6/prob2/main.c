@@ -167,7 +167,6 @@ static void out(void *acc) {
     // Calculate max, min, avg (linear search for small values of n)
     // Hit all but 0 (manager) and (size-1) (synth)
     for (i = 0; i < (val->size-2); i++) {
-        //printf("Count is: %d.\n", *(val->count+i));
         // Check max
         if (max < *(val->count+i))
             max = *(val->count+i);
