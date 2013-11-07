@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <pthread.h>
 #include <mpi.h>
 #include "../util/macros.h"
 #include "../util/pqueue.h"
