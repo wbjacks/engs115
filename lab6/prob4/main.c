@@ -2,13 +2,13 @@
 #include <stdio.h>
 #include <math.h>
 #include <mpi.h>
-#include "../util/wkman.h"
+#include "wkman_optimized.h"
 #include "../util/pqueue.h"
 
 // Defines
 #define PARTITION_MULTIPLIER 10
 #define NUM_MAIN_PARTITIONS 10
-#define OUTPUT_FILE "output.csv"
+#define OUTPUT_FILE "p4_output.csv"
 
 // Statics
 static void *calc(int rank, void *in, size_t *size);

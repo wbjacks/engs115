@@ -19,9 +19,9 @@ P3_CFILES=$(UTIL_CFILES) prob3/main.c
 P3_HFILES=$(UTIL_HILES)  
 P3_OFILES=$(UTIL_OFILES) prob3/main.o
 
-P4_CFILES=$(UTIL_CFILES) prob4/main.c
-P4_HFILES=$(UTIL_HILES)  
-P4_OFILES=$(UTIL_OFILES) prob4/main.o
+P4_CFILES=util/pqueue.c util/queue.c prob4/main.c prob4/wkman_optimized.c
+P4_HFILES=$(P4_CFILES:.c:=.h) 
+P4_OFILES=$(P4_CFILES:.c:=.o)
 
 OFILES=$(P1_OFILES) $(P2_OFILES) $(P3_OFILES) $(P4_OFILES)
 HFILES=$(P1_HFILES) $(P2_HFILES) $(P3_HFILES) $(P4_HFILES)
@@ -42,7 +42,7 @@ p3:	$(P3_OFILES) $(P3_HFILES)
 	$(CC) $(CFLAGS) $(P3_OFILES) -o $@ $(LOADERS)
 
 p4:	$(P4_OFILES) $(P4_HFILES)
-	$(CC) $(CFLAGS) $(P4_OFILES) -o $@ $(LOADERS)
+	$(CC) $(CFLAGS) -pthread $(P4_OFILES) -o $@ $(LOADERS)
 
 clean:
-	rm -f *~ .*.swp util/.*.swp core $(OFILES) $(EXE)
+	rm -f *~ .*.swp util/.*.swp core *.csv $(OFILES) $(EXE)
