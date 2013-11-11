@@ -13,7 +13,7 @@ typedef struct __wk_data WkData_t;
 static void worker(int size, int rank, void *(*calc)(int rank, void *, size_t *size));
 static void manager(int size, void *args, void (*partitioner)(void *args, void *qp));
 static void synthesizer(void *acc, void (*synth)(void *, void *), void (*out)(void *));
-static void *pack(WkData_t *package);
+static void *pack(WkData_t *package, size_t *packed_size);
 static WkData_t *unpack(void *buff);
 
 int runWkMan(int argc,
@@ -56,6 +56,7 @@ static void worker(int size, int rank, void *(*calc)(int rank, void *, size_t *s
     void *r_buff;
     void *ret_pkg;
     size_t ret_pkg_size;
+    size_t packed_size;
     MPI_Status st;
     WkData_t *data;
     WkData_t ret_data;
@@ -67,8 +68,8 @@ static void worker(int size, int rank, void *(*calc)(int rank, void *, size_t *s
     ret_data.pkg_size = sizeof(int);
     ret_data.pkg = malloc(sizeof(int));
     memcpy(ret_data.pkg, &rank, sizeof(int));
-    buff = pack(&ret_data);
-    MPI_OPEN_SEND(buff, 0, MAX_PKG_SIZE);
+    buff = pack(&ret_data, &packed_size);
+    MPI_OPEN_SEND(buff, 0, packed_size);
     if (buff) free(buff);
 
     // Loop until kill is set
@@ -101,10 +102,10 @@ static void worker(int size, int rank, void *(*calc)(int rank, void *, size_t *s
             ret_data.msg = NO_MSG;
             ret_data.pkg_size = ret_pkg_size;
             ret_data.pkg = ret_pkg;
-            buff = pack(&ret_data);
+            buff = pack(&ret_data, &packed_size);
 
             // Send data back
-            MPI_OPEN_SEND(buff, (size-1), MAX_PKG_SIZE);
+            MPI_OPEN_SEND(buff, (size-1), packed_size);
             if (buff) free(buff);
 
             // Send WK_READY to manager
@@ -112,8 +113,8 @@ static void worker(int size, int rank, void *(*calc)(int rank, void *, size_t *s
             ret_data.pkg_size = sizeof(int);
             ret_data.pkg = malloc(sizeof(int));
             memcpy(ret_data.pkg, &rank, sizeof(int));
-            buff = pack(&ret_data);
-            MPI_OPEN_SEND(buff, 0, MAX_PKG_SIZE);
+            buff = pack(&ret_data, &packed_size);
+            MPI_OPEN_SEND(buff, 0, packed_size);
             if (buff) free(buff);
 
             // Cleanup
@@ -127,8 +128,8 @@ static void worker(int size, int rank, void *(*calc)(int rank, void *, size_t *s
     ret_data.msg = WK_DONE;
     ret_data.pkg_size = 0;
     ret_data.pkg = NULL;
-    buff = pack(&ret_data);
-    MPI_OPEN_SEND(buff, 0, MAX_PKG_SIZE);
+    buff = pack(&ret_data, &packed_size);
+    MPI_OPEN_SEND(buff, 0, packed_size);
     return;
 
 }
@@ -139,6 +140,7 @@ static void manager(int size, void *args, void (*partitioner)(void *args, void *
     void *qp;
     void *qval;
     size_t qval_size;
+    size_t packed_size;
     MPI_Status st;
     WkData_t *data;
     WkData_t ret_data;
@@ -188,9 +190,8 @@ static void manager(int size, void *args, void (*partitioner)(void *args, void *
                 //if (qval) free(qval);
 
             }
-            buff = pack(&ret_data);
-            MPI_OPEN_SEND(buff, *((int *)data->pkg), MAX_PKG_SIZE);
-            //printf("buff value before freeing: %p.\n", buff);
+            buff = pack(&ret_data, &packed_size);
+            MPI_OPEN_SEND(buff, *((int *)data->pkg), packed_size);
             if (buff) free(buff);
 
         }
@@ -201,8 +202,8 @@ static void manager(int size, void *args, void (*partitioner)(void *args, void *
     ret_data.msg = SN_GO;
     ret_data.pkg_size = 0;
     ret_data.pkg = NULL;
-    buff = pack(&ret_data);
-    MPI_OPEN_SEND(buff, (size-1), MAX_PKG_SIZE);
+    buff = pack(&ret_data, &packed_size);
+    MPI_OPEN_SEND(buff, (size-1), packed_size);
     if (buff) free(buff);
 
     // Cleanup and return
@@ -247,7 +248,7 @@ static void synthesizer(void *acc, void (*synth)(void *, void *), void (*out)(vo
 }
 
 // Function deep copys a WkData_t struct into a plain 'ol buffer
-static void *pack(WkData_t *package) {
+static void *pack(WkData_t *package, size_t *packed_size) {
     void *ret;
     char *pt;
 
@@ -273,6 +274,9 @@ static void *pack(WkData_t *package) {
     pt += sizeof(size_t);
     memcpy(pt, package->pkg, package->pkg_size);
     pt += package->pkg_size;
+
+    // Set size
+    *packed_size = (size_t)(pt - (char *)ret);
 
     // Return
     return ret;

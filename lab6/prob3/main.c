@@ -79,6 +79,8 @@ int main(int argc, char *argv[]) {
     // Build accumulator
     acc = malloc(sizeof(Accumulator_t));
     memset(acc, 0, sizeof(Accumulator_t));
+
+    // Count is an array
     acc->count = malloc(sizeof(unsigned int) * (size -2));
     memset(acc->count, 0, (sizeof(unsigned int) * (size -2)));
     acc->size = size;
@@ -184,7 +186,7 @@ static void out(void *acc) {
             min = *(val->count+i);
 
         // Calc running average
-        average += ((double)*(val->count+i)) / ((double)(val->size-2));
+        average += ((double)*((val->count)+i)) / ((double)((val->size)-2));
 
     }
     printf("Max: %u, Min: %d, Average: %f.\n", max, min, average);
