@@ -8,6 +8,7 @@
 // Defines
 #define PARTITION_MULTIPLIER 10
 #define NUM_MAIN_PARTITIONS 10
+#define OUTPUT_FILE "p3_output.csv"
 
 // Statics
 static void *calc(int rank, void *in, size_t *size);
@@ -21,6 +22,7 @@ static double f(double t);
 struct __partition {
     double a;
     double b;
+    double prec;
 
 };
 typedef struct __partition Partition_t;
@@ -36,6 +38,7 @@ typedef struct __part_input PartInput_t;
 
 struct __calc_output {
     double val;
+    double prec;
     int rank;
 
 };
@@ -44,6 +47,7 @@ typedef struct __calc_output CalcOutput_t;
 struct __accumulator {
     unsigned int *count;
     double value;
+    double prec;
     int size;
 
 };
@@ -52,6 +56,7 @@ typedef struct __accumulator Accumulator_t;
 int main(int argc, char *argv[]) {
     PartInput_t *parg;
     Accumulator_t *acc;
+    double time;
     int size, rank;
 
     if (argc != 4) {
@@ -75,13 +80,21 @@ int main(int argc, char *argv[]) {
     // Build accumulator
     acc = malloc(sizeof(Accumulator_t));
     memset(acc, 0, sizeof(Accumulator_t));
+
+    // Count is an array
     acc->count = malloc(sizeof(unsigned int) * (size -2));
     memset(acc->count, 0, (sizeof(unsigned int) * (size -2)));
     acc->size = size;
 
     // call runWkMan with provided partitioner and calculator
     // Build partition arg
+    if (rank == 0)
+        time = MPI_Wtime();
     runWkMan(argc, argv, parg, acc, calc, part, synth, out);
+
+    // Print elapsed time
+    if (rank == 0)
+        printf("Elapsed time is: %fs.\n", (MPI_Wtime() - time));
 
     // Exit
     return EXIT_SUCCESS;
@@ -108,11 +121,12 @@ static void r_part(double a, double b, double prec, void *qp) {
     Partition_t *partition;
 
     // Check precision
-    if (fabs(a-b) <= prec) {
+    if (fabs(f(a)-f(b)) <= prec) {
         // Make partition
         partition = (Partition_t *)malloc(sizeof(Partition_t));
         partition->a = a;
         partition->b = b;
+        partition->prec = prec;
 
         // Add to queue
         pqput(qp, (void *)partition, sizeof(Partition_t));
@@ -138,6 +152,7 @@ static void *calc(int rank, void *in, size_t *size) {
 
     *size = sizeof(CalcOutput_t);
     ret->rank = rank; // I could maybe do this with a tag?
+    ret->prec = partition->prec;
     return (void *)ret;
 
 }
@@ -148,6 +163,7 @@ static void synth(void *in, void *acc) {
 
     val->count[calc->rank - 1] += 1;
     val->value += calc->val;
+    val->prec = calc->prec;
     
     return;
 
@@ -157,6 +173,7 @@ static void out(void *acc) {
     unsigned int max;
     int i, min;
     double average;
+    FILE *fp;
     Accumulator_t *val = (Accumulator_t *)acc;
 
     // Set initials
@@ -176,12 +193,18 @@ static void out(void *acc) {
             min = *(val->count+i);
 
         // Calc running average
-        average += ((double)*(val->count+i)) / ((double)(val->size-2));
+        average += ((double)*((val->count)+i)) / ((double)((val->size)-2));
 
     }
     printf("Max: %u, Min: %d, Average: %f.\n", max, min, average);
     printf("The value calculated is: %f.\n", val->value);
     fflush(stdout);
+
+    // Write to file for CSV epicjoy
+    fp = fopen(OUTPUT_FILE, "a");
+    fprintf(fp, "%f, %d, %u, %f\n", val->prec, min, max, average);
+    fclose(fp);
+    
     return;
 
 }
@@ -189,6 +212,6 @@ static void out(void *acc) {
 
 // The function I wish to calculate
 static double f(double t) {
-    return t*t*t;
+    return t * t * t;
 
 }

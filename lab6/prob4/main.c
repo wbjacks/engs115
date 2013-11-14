@@ -112,7 +112,7 @@ static void r_part(double a, double b, double prec, void *qp) {
     Partition_t *partition;
 
     // Check precision
-    if (fabs(a-b) <= prec) {
+    if (fabs(f(a)-f(b)) <= prec) {
         // Make partition
         partition = (Partition_t *)malloc(sizeof(Partition_t));
         partition->a = a;

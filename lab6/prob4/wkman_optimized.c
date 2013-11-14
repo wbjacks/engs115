@@ -12,7 +12,7 @@ struct __wk_data {
 };
 typedef struct __wk_data WkData_t;
 
-// Allows me to pass in 2-for-1!
+// Allows me to pass in 2-for-1, which lets me partition in a thread
 struct __part_bundle {
     void *args;
     void *qp;
@@ -26,7 +26,7 @@ static void worker(int size, int rank, void *(*calc)(int rank, void *, size_t *s
 static void manager(int size, void *args, void (*partitioner)(void *args, void *qp));
 static void *part_wrapper(void *pb); // for multi-threading
 static void synthesizer(void *acc, void (*synth)(void *, void *), void (*out)(void *));
-static void *pack(WkData_t *package);
+static void *pack(WkData_t *package, size_t *size);
 static WkData_t *unpack(void *buff);
 
 int runWkMan(int argc,
@@ -69,6 +69,7 @@ static void worker(int size, int rank, void *(*calc)(int rank, void *, size_t *s
     void *r_buff;
     void *ret_pkg;
     size_t ret_pkg_size;
+    size_t packed_size;
     MPI_Status st;
     WkData_t *data;
     WkData_t ret_data;
@@ -80,8 +81,8 @@ static void worker(int size, int rank, void *(*calc)(int rank, void *, size_t *s
     ret_data.pkg_size = sizeof(int);
     ret_data.pkg = malloc(sizeof(int));
     memcpy(ret_data.pkg, &rank, sizeof(int));
-    buff = pack(&ret_data);
-    MPI_OPEN_SEND(buff, 0, MAX_PKG_SIZE);
+    buff = pack(&ret_data, &packed_size);
+    MPI_OPEN_SEND(buff, 0, packed_size);
     if (buff) free(buff);
 
     // Loop until kill is set
@@ -100,6 +101,18 @@ static void worker(int size, int rank, void *(*calc)(int rank, void *, size_t *s
         if (data->msg != NO_MSG) {
             switch (data->msg) {
                 case WK_KILL: kill = TRUE; break;
+                case WK_WAIT:
+                    // Sleep, then send ready
+                    sleep(WORKER_WAIT_TIME);
+                    // Consider making the below a macro
+                    ret_data.msg = WK_READY;
+                    ret_data.pkg_size = sizeof(int);
+                    ret_data.pkg = malloc(sizeof(int));
+                    memcpy(ret_data.pkg, &rank, sizeof(int));
+                    buff = pack(&ret_data, &packed_size);
+                    MPI_OPEN_SEND(buff, 0, packed_size);
+            if (buff) free(buff);
+                    break;
                 default:
                     fprintf(stderr, "Warning: Bad message received at worker %d.\n", rank);
                     break;
@@ -114,10 +127,10 @@ static void worker(int size, int rank, void *(*calc)(int rank, void *, size_t *s
             ret_data.msg = NO_MSG;
             ret_data.pkg_size = ret_pkg_size;
             ret_data.pkg = ret_pkg;
-            buff = pack(&ret_data);
+            buff = pack(&ret_data, &packed_size);
 
             // Send data back
-            MPI_OPEN_SEND(buff, (size-1), MAX_PKG_SIZE);
+            MPI_OPEN_SEND(buff, (size-1), packed_size);
             if (buff) free(buff);
 
             // Send WK_READY to manager
@@ -125,8 +138,8 @@ static void worker(int size, int rank, void *(*calc)(int rank, void *, size_t *s
             ret_data.pkg_size = sizeof(int);
             ret_data.pkg = malloc(sizeof(int));
             memcpy(ret_data.pkg, &rank, sizeof(int));
-            buff = pack(&ret_data);
-            MPI_OPEN_SEND(buff, 0, MAX_PKG_SIZE);
+            buff = pack(&ret_data, &packed_size);
+            MPI_OPEN_SEND(buff, 0, packed_size);
             if (buff) free(buff);
 
             // Cleanup
@@ -140,8 +153,8 @@ static void worker(int size, int rank, void *(*calc)(int rank, void *, size_t *s
     ret_data.msg = WK_DONE;
     ret_data.pkg_size = 0;
     ret_data.pkg = NULL;
-    buff = pack(&ret_data);
-    MPI_OPEN_SEND(buff, 0, MAX_PKG_SIZE);
+    buff = pack(&ret_data, &packed_size);
+    MPI_OPEN_SEND(buff, 0, packed_size);
     return;
 
 }
@@ -149,25 +162,26 @@ static void worker(int size, int rank, void *(*calc)(int rank, void *, size_t *s
 static void manager(int size, void *args, void (*partitioner)(void *args, void *qp)) {
     int done_workers = 0;
     void *buff, *r_buff;
-    void *qp;
     void *qval;
-    size_t qval_size;
+    void *qp;
+    size_t qval_size, packed_size;
     MPI_Status st;
     WkData_t *data;
     WkData_t ret_data;
-    PartBundle_t pb;
+    PartBundle_t *pb;
     pthread_t part_thread;
 
     r_buff = malloc(MAX_PKG_SIZE);
 
     // Open shit
     qp = pqopen();
-    pb.qp = qp;
-    pb.args = args;
-    pb.partitioner = partitioner;
+    pb = malloc(sizeof(PartBundle_t));
+    pb->qp = qp;
+    pb->args = args;
+    pb->partitioner = partitioner;
 
     // Run partitioner-> REACH do this in a thread
-    pthread_create(&part_thread, NULL, part_wrapper, &pb);
+    pthread_create(&part_thread, NULL, part_wrapper, pb);
     //printf("Partitioned!\n");
 
     // Loop until workers done
@@ -191,39 +205,45 @@ static void manager(int size, void *args, void (*partitioner)(void *args, void *
             qval = pqget(qp, &qval_size);
             if (!qval && partition_done) {
                 // If queue value is NULL, send WK_KILL
-                //printf("Sending Kill to %d..\n", *(int *)data->pkg);
+                // Make sure pthread isn't still going
+                //pthread_join(part_thread, NULL);
+
                 ret_data.msg = WK_KILL;
                 ret_data.pkg_size = 0;
                 ret_data.pkg = NULL;
 
             }
-            else {
-                // Else, send partition
+            else if (qval != NULL) {
+                // Qvalue received, send it along
                 //printf("Size from queue: %d\n", (int)qval_size);
                 ret_data.msg = NO_MSG;
                 ret_data.pkg_size = qval_size;
                 ret_data.pkg = qval;
-                //if (qval) free(qval);
 
             }
-            buff = pack(&ret_data);
-            MPI_OPEN_SEND(buff, *((int *)data->pkg), MAX_PKG_SIZE);
-            //printf("buff value before freeing: %p.\n", buff);
+            else {
+                // Else qvalue not obtained, tell worker to wait
+                ret_data.msg = WK_WAIT;
+                ret_data.pkg_size = 0;
+                ret_data.pkg = NULL;
+
+            }
+            // Send
+            buff = pack(&ret_data, &packed_size);
+            MPI_OPEN_SEND(buff, *((int *)data->pkg), packed_size);
             if (buff) free(buff);
 
         }
         if (data) free(data);
 
     }
-    // Make sure pthread isn't still going
-    pthread_join(part_thread, NULL);
 
     // Send sync_ok
     ret_data.msg = SN_GO;
     ret_data.pkg_size = 0;
     ret_data.pkg = NULL;
-    buff = pack(&ret_data);
-    MPI_OPEN_SEND(buff, (size-1), MAX_PKG_SIZE);
+    buff = pack(&ret_data, &packed_size);
+    MPI_OPEN_SEND(buff, (size-1), packed_size);
     if (buff) free(buff);
 
     // Cleanup and return
@@ -277,7 +297,7 @@ static void synthesizer(void *acc, void (*synth)(void *, void *), void (*out)(vo
 }
 
 // Function deep copys a WkData_t struct into a plain 'ol buffer
-static void *pack(WkData_t *package) {
+static void *pack(WkData_t *package, size_t *size) {
     void *ret;
     char *pt;
 
@@ -303,6 +323,9 @@ static void *pack(WkData_t *package) {
     pt += sizeof(size_t);
     memcpy(pt, package->pkg, package->pkg_size);
     pt += package->pkg_size;
+
+    // Calc size
+    *size = (size_t)(pt - (char *)ret);
 
     // Return
     return ret;
