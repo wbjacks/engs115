@@ -9,11 +9,10 @@
 #define NUM_MAIN_PARTITIONS 10
 
 // Statics
-static void *calc(void *in, size_t *size);
+static void *calc(int rank, void *in, size_t *size);
 static void part(void *args, void *qp);
 static void r_part(double a, double b, double prec, void *qp);
 static void synth(void *in, void *acc);
-static void *acc(void);
 static void out(void *in);
 static double f(double t);
 
@@ -35,6 +34,7 @@ struct __part_input {
 typedef struct __part_input PartInput_t;
 
 int main(int argc, char *argv[]) {
+    void *acc;
     PartInput_t *parg;
 
     if (argc != 4) {
@@ -47,6 +47,8 @@ int main(int argc, char *argv[]) {
     parg->end = atof(argv[2]);
     parg->prec = atof(argv[3]);
     parg->m = 10;
+
+    acc = malloc(sizeof(double));
     // call runWkMan with provided partitioner and calculator
     // Build partition args
     runWkMan(argc, argv, parg, acc, calc, part, synth, out);
@@ -91,7 +93,7 @@ static void r_part(double a, double b, double prec, void *qp) {
     }
 }
 
-static void *calc(void *in, size_t *size) {
+static void *calc(int rank, void *in, size_t *size) {
     double *ret;
     double t;
     Partition_t *partition = (Partition_t *)in;
@@ -109,11 +111,6 @@ static void *calc(void *in, size_t *size) {
 static void synth(void *in, void *acc) {
     *((double *)acc) += *((double *)in);
     return;
-
-}
-
-static void *acc(void) {
-    return malloc(sizeof(double));
 
 }
 

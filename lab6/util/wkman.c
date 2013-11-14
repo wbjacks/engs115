@@ -10,7 +10,7 @@ struct __wk_data {
 typedef struct __wk_data WkData_t;
 
 // Statics
-static void worker(int size, int rank, void *(*calc)(int rank, void *, size_t *size));
+static void worker(int size, int rank, void *(*calc)(int, void *, size_t *));
 static void manager(int size, void *args, void (*partitioner)(void *args, void *qp));
 static void synthesizer(void *acc, void (*synth)(void *, void *), void (*out)(void *));
 static void *pack(WkData_t *package, size_t *packed_size);
@@ -20,7 +20,7 @@ int runWkMan(int argc,
              char *argv[],
              void *pargs,
              void *acc,
-             void *(*calc)(int rank, void *, size_t *size),
+             void *(*calc)(int, void *, size_t *),
              void (*part)(void *, void *),
              void (*synth)(void *, void *),
              void (*out)(void *))

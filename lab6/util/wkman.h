@@ -20,7 +20,7 @@ int runWkMan(int argc,
              char *argv[],
              void *pargs,
              void *acc,
-             void *(*calc)(int rank, void *, size_t *size),
+             void *(*calc)(int, void *, size_t *),
              void (*part)(void *, void *),
              void (*synth)(void *, void *),
              void (*out)(void *));
