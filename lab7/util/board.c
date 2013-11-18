@@ -1,7 +1,5 @@
 // Includes
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include "./board.h"
 
 // Defines
 #define QUEEN 1
@@ -18,15 +16,20 @@ typedef struct __board Board_t;
 
 void *initialize(int n) {
     int i;
-    void *b;
+    Board_t *b;
 
-    b = malloc(sizeof(Board_t));
+    b = (Board_t *)malloc(sizeof(Board_t));
     b->queen_count = 0;
     b->n = n;
 
-    for (i = 0; i < n; i++)
+    // Build board spots
+    b->board = malloc(n * sizeof(int *));
+    for (i = 0; i < n; i++) {
         b->board[i] = malloc(n * sizeof(int));
-    return b;
+        memset(b->board[i], 0, n*sizeof(int));
+
+    }
+    return (void *)b;
 
 }
 
@@ -49,7 +52,7 @@ void *boardCpy(void *board) {
     new_b->queen_count = b->queen_count;
 
     for (i = 0; i < b->n; i++)
-        memcpy(b->board[i], new_b->board[i], n*sizeof(int));
+        new_b->board[i] = memcpy(new_b->board[i], b->board[i], b->n*sizeof(int));
 
     return (void *)new_b;
 
@@ -60,17 +63,21 @@ void printBoard(void *board) {
     Board_t *b = (Board_t *)board;
 
     for (i = 0; i < b->n; i++) {
-        for (j = 0; j < b->n; j++) {
+        for (j = 0; j < b->n; j++)
             printf("|%c", (hasQueen(b, i, j) ? 'Q' : ' '));
         printf("|\n");
+
     }
+    printf("\n\n");
 }
 
 void setQueen(void *board, int row, int column) {
     Board_t *b = (Board_t *)board;
-    b->board[row][column] = QUEEN;
-    b->queen_count++;
+    if (!hasQueen(board, row, column)) {
+        b->board[row][column] = QUEEN;
+        b->queen_count++;
 
+    }
 }
 
 // Again with the linear searching 'cuz I am lazy
@@ -88,13 +95,23 @@ int isLegalMove(void *board, int row, int column) {
         if (hasQueen(board, i, column) && i != row)
             return FALSE;
 
-    // Check diagonally up
+    // Check diagonally R up
     for (i = row+1, j = column+1; i < b->n && j < b->n; i++, j++)
         if (hasQueen(board, i, j))
             return FALSE;
 
-    // Check diagonally down
+    // Check diagonally R down
     for (i = row-1, j = column-1; i >= 0 && j >= 0; i--, j--)
+        if (hasQueen(board, i, j))
+            return FALSE;
+
+    // Check diagonally L up
+    for (i = row+1, j = column-1; i < b->n && j >= 0; i++, j--)
+        if (hasQueen(board, i, j))
+            return FALSE;
+
+    // Check diagonally L down
+    for (i = row-1, j = column+1; i >= 0 && j < b->n; i--, j++)
         if (hasQueen(board, i, j))
             return FALSE;
 
@@ -105,17 +122,35 @@ int isLegalMove(void *board, int row, int column) {
 
 void removeQueen(void *board, int row, int column) {
     Board_t *b = (Board_t *)board;
-    b->board[row][column] = NO_QUEEN;
-    b->queen_count--;
+    if (hasQueen(board, row, column)) {
+        b->board[row][column] = NO_QUEEN;
+        b->queen_count--;
 
+    }
 }
 
 int hasQueen(void *board, int row, int column) {
-    return ((Board_t *)board)->board[row][column] == QUEEN;
+    return (((Board_t *)board)->board[row][column] == QUEEN);
 
 }
 
 int numSetQueens(void *board) {
-    return ((Board_t *)board)->queen_count;
+    //return ((Board_t *)board)->queen_count;
+    int i, j;
+    int count = 0;
+    Board_t *b = (Board_t *)board;
+
+    for (i = 0; i < b->n; i++) {
+        for (j = 0; j < b->n; j++) {
+            if (b->board[i][j] == QUEEN)
+                count++;
+
+        }
+    }
+    return count;
+}
+
+int onBoard(void *board, int row, int column) {
+    return (row < ((Board_t *)board)->n && column < ((Board_t *)board)->n);
 
 }

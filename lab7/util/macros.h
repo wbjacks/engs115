@@ -9,8 +9,8 @@
     MPI_Comm_size(MPI_COMM_WORLD, s)
 
 // Args
-#define CHECK_ARGC(n) if (argc != n) { \
-    fprintf(stderr, "Error: Bad arguments. Exiting...\n");
+#define CHECK_ARGC(n_val) if (argc != n_val) { \
+    fprintf(stderr, "Error: Bad arguments. Exiting...\n");\
     return EXIT_FAILURE; }
 
 // Standard defines

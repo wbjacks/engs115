@@ -1,3 +1,8 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "./macros.h"
+
 // Prototypes
 
 // Creates and returns a board
@@ -26,3 +31,6 @@ int hasQueen(void *board, int row, int column);
 
 // Check for the total number of queens on the board
 int numSetQueens(void *board);
+
+// Check if given row / col is on the board
+int onBoard(void *board, int row, int column);
