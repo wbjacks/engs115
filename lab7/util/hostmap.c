@@ -109,6 +109,32 @@ void addValToHost(void *map, int val) {
 }
 
 int *getAllValues(void *map, size_t *ret_size) {
-   //int *vals = (int *)malloc();
+    int *vals, *i_pt;
+    HostNode_t *n_pt;
+    ListHead_t *head = (ListHead_t *)map;
+
+    // Build output array
+    vals = (int *)malloc(head->num_nodes, sizeof(int));
+    for (n_pt = head->first, i_pt = vals; n_pt; n_pt = n_pt->next)
+        *i_pt++ = n_pt->val;
+
+    *ret_size = head->num_nodes;
+    return vals;
+
+}
+
+char **getAllHosts(void *map, size_t *ret_size) {
+    char **ret, **s_pt;
+    HostNode_t *n_pt;
+    ListHead_t *head = (ListHead_t *)map;
+
+    ret = malloc(head->num_nodes);
+    for (n_pt = head->first, s_pt = ret; n_pt; n_pt = n_pt->next) {
+        *s_pt = malloc(MAX_IPV6_SIZE);
+        strncpy(*s_pt++, n_pt->address, MAX_IPV6_SIZE);
+
+    }
+    *ret_size = head->num_nodes;
+    return ret;
 
 }
