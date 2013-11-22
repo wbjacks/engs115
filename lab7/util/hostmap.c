@@ -1,13 +1,18 @@
 // Includes
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 #include <errno.h>
+#include "./hostmap.h"
 
 // Defines
 #define MAX_IPV6_SIZE 46
 
-#define GET_HOST(str) if (gethostname(str, MAX_IPV6_SIZE) != 0) { \
+#define GET_HOST(str) do {if (gethostname(str, MAX_IPV6_SIZE) != 0) { \
         fprintf(stderr, "Error in hostmap.c: Problem adding host.\n"); \
         fprintf(stderr, "Error is: %s.\n", strerror(errno)); \
-        return -1;}
+        return -1;} } while(0);
 
 // Structs
 struct __host_node {
@@ -77,7 +82,7 @@ int hostExists(void *map) {
     ListHead_t *head = (ListHead_t *)map;
 
     // Get current host
-    GET_HOST(host->address);
+    GET_HOST(curr_host);
 
     for (pt = head->first; pt; pt = pt->next) {
         if (!strcmp(curr_host, pt->address))
@@ -88,23 +93,25 @@ int hostExists(void *map) {
 
 }
 
-void addValToHost(void *map, int val) {
+int addValToHost(void *map, int val) {
+    char curr_host[MAX_IPV6_SIZE];
     HostNode_t *pt;
     ListHead_t *head = (ListHead_t *)map;
 
     // Get current host
-    GET_HOST(host->address);
+    GET_HOST(curr_host);
 
     // Add value
     for (pt = head->first; pt; pt = pt->next) {
         if (!strcmp(curr_host, pt->address)) {
             pt->val += val;
-            return;
+            return 0;
 
         }
     }
     // Host doesn't exist, throw error
     fprintf(stderr, "Error in addValToHost(): current host doesn't exist in map.\n");
+    return -1;
 
 }
 
@@ -114,7 +121,7 @@ int *getAllValues(void *map, size_t *ret_size) {
     ListHead_t *head = (ListHead_t *)map;
 
     // Build output array
-    vals = (int *)malloc(head->num_nodes, sizeof(int));
+    vals = (int *)malloc(head->num_nodes * sizeof(int));
     for (n_pt = head->first, i_pt = vals; n_pt; n_pt = n_pt->next)
         *i_pt++ = n_pt->val;
 

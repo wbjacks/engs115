@@ -154,3 +154,56 @@ int onBoard(void *board, int row, int column) {
     return (row < ((Board_t *)board)->n && column < ((Board_t *)board)->n);
 
 }
+
+void *packBoard(void *board, size_t *size) {
+    int i;
+    char *pt;
+    void *ret;
+    Board_t *b = (Board_t *)board;
+
+    ret = malloc(2*sizeof(int) + b->n * b->n * sizeof(int));
+    pt = (char *)ret;
+    memcpy(pt, &(b->n), sizeof(int));
+    pt+= sizeof(int);
+
+    memcpy(pt, &(b->queen_count), sizeof(int));
+    pt += sizeof(int);
+
+    for (i = 0; i < b->n; i++) {
+        memcpy(pt, b->board[i], b->n*sizeof(int));
+        pt += b->n*sizeof(int);
+
+    }
+    *size = pt - (char *)ret;
+    return ret;
+
+}
+
+void *unpackBoard(void *buf, size_t *size) {
+    int i, n;
+    char *pt;
+    Board_t *ret;
+
+    pt = (char *)buf;
+
+    // Get n
+    memcpy(&n, pt, sizeof(int));
+    pt += sizeof(int);
+
+    // Build board
+    ret = initialize(n);
+
+    // Get queen
+    memcpy(&(ret->queen_count), pt, sizeof(int));
+    pt += sizeof(int);
+
+    // Get board
+    for (i = 0; i < n; i++) {
+        memcpy(ret->board[i], pt, n*sizeof(int));
+        pt += sizeof(n*sizeof(int));
+
+    }
+    *size = pt - (char *)buf;
+    return ret;
+
+}

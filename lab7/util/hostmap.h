@@ -22,7 +22,7 @@ int hostExists(void *map);
 // doesn't exist.
 // void *map: pointer to map
 // int val: value to add
-void addValToHost(void *map, int val);
+int addValToHost(void *map, int val);
 
 // Returns array of values in the map in set order.
 // void *map: pointer to map
