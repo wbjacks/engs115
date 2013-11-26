@@ -30,8 +30,7 @@ static void worker(int size, int rank, void (*calc)(int, void *, void *));
 static void manager(int size, void *args, void (*partitioner)(void *, void *));
 static void *part_wrapper(void *pb); // for multi-threading
 static void synthesizer(void *acc, void (*synth)(void *, void *), void (*out)(void *));
-//static void *workerToken(void *args);
-//static void *managerToken(void *args);
+static void *requestNewJob(void *args);
 
 int runWkMan(int argc,
              char *argv[],
@@ -77,7 +76,7 @@ static void worker(int size, int rank, void (*calc)(int rank, void *, void *)) {
     MPI_Status st;
     WkData_t *data;
     WkData_t ret_data;
-    //pthread_t token_thread;
+    pthread_t req_thread;
     //TknArgs_t targs;
 
     r_buff = malloc(MAX_PKG_SIZE);
@@ -143,6 +142,9 @@ static void worker(int size, int rank, void (*calc)(int rank, void *, void *)) {
             all_waiting = FALSE;
             is_waiting = FALSE;
             */
+            // Request job before calculation
+            pthread_create(&req_thread, NULL, requestNewJob, &rank);
+
             subprob = spLOpen();
             calc(rank, data->pkg, subprob);
 
@@ -167,14 +169,8 @@ static void worker(int size, int rank, void (*calc)(int rank, void *, void *)) {
             }
             spLClose(subprob);
 
-            // Send WK_READY to manager
-            ret_data.msg = WK_READY;
-            ret_data.pkg_size = sizeof(int);
-            ret_data.pkg = malloc(sizeof(int));
-            memcpy(ret_data.pkg, &rank, sizeof(int));
-            buff = pack(&ret_data, &packed_size);
-            MPI_OPEN_SEND(buff, 0, packed_size);
-            SAFE_FREE(buff);
+            // Wait for req_thread
+            pthread_join(req_thread, NULL);
 
             // Cleanup
             memset(ret_pkg, 0, ret_pkg_size);
@@ -192,6 +188,25 @@ static void worker(int size, int rank, void (*calc)(int rank, void *, void *)) {
     buff = pack(&ret_data, &packed_size);
     MPI_OPEN_SEND(buff, 0, packed_size);
     return;
+
+}
+
+static void *requestNewJob(void *args) {
+    int rank = *((int *)args);
+    void *buff;
+    size_t packed_size;
+    WkData_t ret_data;
+
+    // Send WK_READY to manager
+    ret_data.msg = WK_READY;
+    ret_data.pkg_size = sizeof(int);
+    ret_data.pkg = malloc(sizeof(int));
+    memcpy(ret_data.pkg, &rank, sizeof(int));
+    buff = pack(&ret_data, &packed_size);
+    MPI_OPEN_SEND(buff, 0, packed_size);
+    SAFE_FREE(buff);
+
+    return NULL;
 
 }
 
