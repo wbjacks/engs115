@@ -1,0 +1,34 @@
+<title>MPI Library Reference: MPI_Barrier</title>
+
+<h2>MPI_Barrier</h2>
+
+This function (loosely) synchronizes all of the processes under the
+given communicator.  All processes are guaranteed to have
+reached the call before any of them continue.  (They aren't
+guaranteed to leave the call at the same time, but in
+practice they should.)<p>
+
+<hr>
+
+<h3>Prototype:</h3>
+
+<b>MPI_Barrier(MPI_Comm comm);</b><p>
+
+This routine is useful in <a href="../timing.html">timing</a>
+code or in other situations where synchronization is necessary.
+For most purposes, the communicator argument should just be
+"MPI_COMM_WORLD" (i.e., all processes participate in must
+reach the barrier for the computation to continue).<p>
+
+<hr>
+<p>
+The use of this routine is pretty straight-forward:<p>
+
+<pre>
+
+    /* If there is still a process here... */
+    MPI_Barrier(MPI_COMM_WORLD)
+    /* ...then there aren't any processes here. */
+
+</pre>
+

@@ -1,0 +1,42 @@
+<title>MPI Library Reference: MPI_Wtime</title>
+
+<h2>MPI_Wtime</h2>
+
+This function returns the time in seconds (and fractions
+thereof).<p>
+
+<hr><p>
+
+<h3>Prototype:</h3>
+
+<b>double MPI_Wtime();</b><p>
+
+This routine is useful in <a href="../timing.html">timing</a>
+code.  Note that the clocks of different processes are not
+synchronized and that the usefulness of this routine is in
+determining <em>elapsed time</em>, not when you should get
+up in the morning.<p>
+
+<hr>
+<p>
+This routine is generally used in the following manner:<p>
+
+<pre>
+
+    double start,
+           end,
+           time_elapsed;
+
+    ...
+
+    start = MPI_Wtime();
+
+    /* Something you want to time. */
+
+    end = MPI_Wtime();
+    time_elapsed = end - start;
+
+</pre>
+
+
+

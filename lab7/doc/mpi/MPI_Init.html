@@ -1,0 +1,38 @@
+<title>MPI Library Reference: MPI_Init</title>
+
+<h2>MPI_Init</h2>
+
+This function initializes, sets up, and generally prepares MPI for your 
+program.  You should run MPI_Init in main() before doing anything else -- it 
+should be the first command your program executes.<p>
+
+<hr>
+
+<h3>Prototype:</h3>
+
+<b>MPI_Init(int *argc,char ***argv);</b><p>
+
+You should call MPI_Init as the first command in "main()", and pass it the 
+addresses of <tt>argv</tt> and <tt>argc</tt>.  MPI_Init will fix argv and argc 
+so that you can check command-line arguments as normal.<p>
+
+MPI_Init should generally be called always and only this way:<p>
+
+<dl><dl>
+<pre>
+main(int argc, char **argv)
+{
+   int x,y,z;  /* ..Etc.. declare variables here like normal */
+   
+   MPI_Init(&argc,&argv);
+
+     /* Continue with rest of main() below... */
+
+</pre>
+</dl></dl>
+
+MPI_Init initializes your program in the same way that 
+<a href="MPI_Finalize.html">MPI_Finalize</a> finalizes it.
+There's not much else to say.<p>
+
+

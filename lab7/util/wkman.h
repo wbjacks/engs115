@@ -4,8 +4,10 @@
 #include <string.h>
 #include <unistd.h>
 #include <mpi.h>
+#include <signal.h>
 #include "../util/macros.h"
 #include "../util/pqueue.h"
+#include "../util/spList.h"
 
 // Defines
 #define WK_DONE 0
@@ -17,8 +19,8 @@
 #define WK_AWAKE 6
 #define NO_MSG -1
 
-#define MAX_PKG_SIZE 100
-#define WORKER_WAIT_TIME 3
+#define MAX_PKG_SIZE 1000
+#define WORKER_WAIT_TIME 1
 
 // Structures
 // Normally I wouldn't expose this, but I need it to send subproblems in calc
@@ -44,7 +46,7 @@ int runWkMan(int argc,
              char *argv[],
              void *pargs,
              void *acc,
-             void *(*calc)(int, void *, size_t *),
+             void (*calc)(int, void *, void *),
              void (*part)(void *, void *),
              void (*synth)(void *, void *),
              void (*out)(void *));

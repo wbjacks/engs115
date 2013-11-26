@@ -37,5 +37,4 @@ int onBoard(void *board, int row, int column);
 
 void *packBoard(void *board, size_t *size);
 
-
 void *unpackBoard(void *buf, size_t *size);

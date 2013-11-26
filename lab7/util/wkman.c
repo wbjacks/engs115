@@ -1,7 +1,13 @@
 #include "wkman.h"
+#include "board.h"
 
 // Global
+/*
+int all_waiting = FALSE;
+int is_waiting = FALSE;
+*/
 int partition_done = FALSE;
+int kill = FALSE;
 
 // Allows me to pass in 2-for-1, which lets me partition in a thread
 struct __part_bundle {
@@ -12,17 +18,26 @@ struct __part_bundle {
 };
 typedef struct __part_bundle PartBundle_t;
 
+struct __tkn_args {
+    int rank;
+    int size;
+
+};
+typedef struct __tkn_args TknArgs_t;
+
 // Statics
-static void worker(int size, int rank, void *(*calc)(int rank, void *, size_t *size));
-static void manager(int size, void *args, void (*partitioner)(void *args, void *qp));
+static void worker(int size, int rank, void (*calc)(int, void *, void *));
+static void manager(int size, void *args, void (*partitioner)(void *, void *));
 static void *part_wrapper(void *pb); // for multi-threading
 static void synthesizer(void *acc, void (*synth)(void *, void *), void (*out)(void *));
+//static void *workerToken(void *args);
+//static void *managerToken(void *args);
 
 int runWkMan(int argc,
              char *argv[],
              void *pargs,
              void *acc,
-             void *(*calc)(int rank, void *, size_t *size),
+             void (*calc)(int, void *, void *),
              void (*part)(void *, void *),
              void (*synth)(void *, void *),
              void (*out)(void *))
@@ -52,16 +67,18 @@ int runWkMan(int argc,
 
 }
 
-static void worker(int size, int rank, void *(*calc)(int rank, void *, size_t *size)) {
-    int kill = FALSE;
+static void worker(int size, int rank, void (*calc)(int rank, void *, void *)) {
     void *buff;
     void *r_buff;
     void *ret_pkg;
+    void *subprob;
     size_t ret_pkg_size;
     size_t packed_size;
     MPI_Status st;
     WkData_t *data;
     WkData_t ret_data;
+    //pthread_t token_thread;
+    //TknArgs_t targs;
 
     r_buff = malloc(MAX_PKG_SIZE);
 
@@ -72,7 +89,14 @@ static void worker(int size, int rank, void *(*calc)(int rank, void *, size_t *s
     memcpy(ret_data.pkg, &rank, sizeof(int));
     buff = pack(&ret_data, &packed_size);
     MPI_OPEN_SEND(buff, 0, packed_size);
-    if (buff) free(buff);
+    SAFE_FREE(buff);
+
+    // Start token passer
+    /*
+    targs.rank = rank;
+    targs.size = size;
+    pthread_create(&token_thread, NULL, workerToken, &targs);
+    */
 
     // Loop until kill is set
     while (!kill) {
@@ -91,19 +115,23 @@ static void worker(int size, int rank, void *(*calc)(int rank, void *, size_t *s
             switch (data->msg) {
                 case WK_KILL: kill = TRUE; break;
                 case WK_WAIT:
+                    //is_waiting = TRUE; break;
                     // Sleep, then send ready
+                    // (sorry professor can't get token passing to work)
                     sleep(WORKER_WAIT_TIME);
                     // Consider making the below a macro
-                    ret_data.msg = WK_AWAKE;
+                    ret_data.msg = WK_READY;
                     ret_data.pkg_size = sizeof(int);
                     ret_data.pkg = malloc(sizeof(int));
                     memcpy(ret_data.pkg, &rank, sizeof(int));
                     buff = pack(&ret_data, &packed_size);
                     MPI_OPEN_SEND(buff, 0, packed_size);
-            if (buff) free(buff);
+                    SAFE_FREE(buff);
                     break;
+
                 default:
-                    fprintf(stderr, "Warning: Bad message received at worker %d.\n", rank);
+                    fprintf(stderr,
+                        "Warning: Bad message %d received at worker %d.\n", data->msg, rank);
                     break;
 
             }
@@ -111,21 +139,33 @@ static void worker(int size, int rank, void *(*calc)(int rank, void *, size_t *s
         // Recieved partition packet
         else {
             // If message is empty, throw pkg at the supplied task
-            printf("Calculating...\n");
-            ret_pkg = calc(rank, data->pkg, &ret_pkg_size);
+            /*
+            all_waiting = FALSE;
+            is_waiting = FALSE;
+            */
+            subprob = spLOpen();
+            calc(rank, data->pkg, subprob);
 
-            /* NEW PROBLEM: calc can either return a sub-problem (branching) */
-            /* or the original problem */
+            /* NEW PROBLEM: calc returns a list of problems */
+            while ((ret_pkg = spLGetProb(subprob, &ret_pkg_size)) != NULL) {
+                // Pack data, send to sync 
 
-            // Pack data, send to sync 
-            ret_data.msg = NO_MSG;
-            ret_data.pkg_size = ret_pkg_size;
-            ret_data.pkg = ret_pkg;
-            buff = pack(&ret_data, &packed_size);
+                // Test test
+                //printf("Return from calc.");
+                //printf("\n\nChecking return of calc...\n");
+                //printBoard(unpackBoard(ret_pkg, &packed_size));
 
-            // Send data back
-            MPI_OPEN_SEND(buff, (size-1), packed_size);
-            if (buff) free(buff);
+                ret_data.msg = NO_MSG;
+                ret_data.pkg_size = ret_pkg_size;
+                ret_data.pkg = ret_pkg;
+                buff = pack(&ret_data, &packed_size);
+
+                // Send data back
+                MPI_OPEN_SEND(buff, (size-1), packed_size);
+                SAFE_FREE(buff);
+
+            }
+            spLClose(subprob);
 
             // Send WK_READY to manager
             ret_data.msg = WK_READY;
@@ -134,16 +174,18 @@ static void worker(int size, int rank, void *(*calc)(int rank, void *, size_t *s
             memcpy(ret_data.pkg, &rank, sizeof(int));
             buff = pack(&ret_data, &packed_size);
             MPI_OPEN_SEND(buff, 0, packed_size);
-            if (buff) free(buff);
+            SAFE_FREE(buff);
 
             // Cleanup
             memset(ret_pkg, 0, ret_pkg_size);
 
         }
-        if (data) free(data);
+        SAFE_FREE(data);
     
     }
     // Kill has been set... clean up and die in peace
+    //pthread_join(token_thread, NULL);
+
     ret_data.msg = WK_DONE;
     ret_data.pkg_size = 0;
     ret_data.pkg = NULL;
@@ -153,8 +195,69 @@ static void worker(int size, int rank, void *(*calc)(int rank, void *, size_t *s
 
 }
 
+/*
+static void *workerToken(void *in) {
+    int src, next;
+    void *buff;
+    size_t packed_size;
+    MPI_Status st;
+    WkData_t ret_data;
+    TknArgs_t *args = (TknArgs_t *)in;
+
+    // Find next
+    next = (args->rank + 1) % args->size;
+    if (next == 0) next = 1;
+    if (next == (args->size-1)) next = 1;
+
+    for(;;) {
+        // Wait for tagged message
+        MPI_TKN_RECV(&src, &st, sizeof(int));
+
+        if (all_waiting) {
+            if (src != next)
+                MPI_TKN_SEND((void *)&src, next, sizeof(int));
+            return NULL;
+
+        }
+        // Check if waiting
+        else if (is_waiting) {
+            // Check src of token
+            if (src == args->rank) {
+                // set all_waiting-> send msg to manager
+                all_waiting = TRUE;
+                MPI_TKN_SEND((void *)&src, 0, sizeof(int)); // poke manager
+
+            }
+            // Else, check if src = -1
+            if (src == -1) {
+                src = args->rank;
+
+            }
+            // Try to signal manager
+            ret_data.msg = WK_READY;
+            ret_data.pkg_size = sizeof(int);
+            ret_data.pkg = malloc(sizeof(int));
+            memcpy(ret_data.pkg, &args->rank, sizeof(int));
+            buff = pack(&ret_data, &packed_size);
+            MPI_OPEN_SEND(buff, 0, packed_size);
+            SAFE_FREE(buff);
+
+        }
+        // Else, set src = -1
+        else {
+            src = -1;
+
+        }
+        // Pass to next
+        MPI_TKN_SEND((void *)&src, next, sizeof(int));
+
+    }
+}
+*/
+
 static void manager(int size, void *args, void (*partitioner)(void *args, void *qp)) {
-    int done_workers = 0, waiting_workers = 0;
+    int done_workers = 0;
+    //int src;
     void *buff, *r_buff;
     void *qval;
     void *qp;
@@ -163,7 +266,7 @@ static void manager(int size, void *args, void (*partitioner)(void *args, void *
     WkData_t *data;
     WkData_t ret_data;
     PartBundle_t *pb;
-    pthread_t part_thread;
+    pthread_t part_thread;//, token_thread;
 
     r_buff = malloc(MAX_PKG_SIZE);
 
@@ -174,9 +277,17 @@ static void manager(int size, void *args, void (*partitioner)(void *args, void *
     pb->args = args;
     pb->partitioner = partitioner;
 
+    // Run token pass
+    //pthread_create(&token_thread, NULL, managerToken, NULL);
+
     // Run partitioner-> REACH do this in a thread
     pthread_create(&part_thread, NULL, part_wrapper, pb);
-    //printf("Partitioned!\n");
+
+    // Partitioner done, start token passing
+    /*
+    src = -1;
+    MPI_TKN_SEND((void *)&src, 1, sizeof(int));
+    */
 
     // Loop until workers done
     while (done_workers < (size-2)) {
@@ -191,18 +302,15 @@ static void manager(int size, void *args, void (*partitioner)(void *args, void *
 
         }
         memset(r_buff, 0, MAX_PKG_SIZE);
-        if (data->msg == WK_DONE) 
+        if (data->msg == WK_DONE) { 
             done_workers++;
+            //printf("Workers done: %d.\n", done_workers);
 
+        }
         else {
-            if (data->msg == WK_AWAKE) {
-                waiting_workers--;
-                printf("Waiting: %d.\n", waiting_workers);
-
-            }
             // Grab value from queue
             qval = pqget(qp, &qval_size);
-            if (!qval && partition_done && waiting_workers == (size-2)) {
+            if (!qval && partition_done) { //&& all_waiting) {
                 // If queue value is NULL, send WK_KILL
                 // Make sure pthread isn't still going
                 //pthread_join(part_thread, NULL);
@@ -210,12 +318,12 @@ static void manager(int size, void *args, void (*partitioner)(void *args, void *
                 ret_data.msg = WK_KILL;
                 ret_data.pkg_size = 0;
                 ret_data.pkg = NULL;
+                //printf("Sending kill ");
 
             }
             else if (qval != NULL) {
                 // Qvalue received, send it along
                 //printf("Size from queue: %d\n", (int)qval_size);
-                printf("pkg\n");
                 ret_data.msg = NO_MSG;
                 ret_data.pkg_size = qval_size;
                 ret_data.pkg = qval;
@@ -226,16 +334,16 @@ static void manager(int size, void *args, void (*partitioner)(void *args, void *
                 ret_data.msg = WK_WAIT;
                 ret_data.pkg_size = 0;
                 ret_data.pkg = NULL;
-                waiting_workers++;
 
             }
             // Send
             buff = pack(&ret_data, &packed_size);
             MPI_OPEN_SEND(buff, *((int *)data->pkg), packed_size);
-            if (buff) free(buff);
+            //printf("to %d.\n", *((int *)data->pkg));
+            SAFE_FREE(buff);
 
         }
-        if (data) free(data);
+        SAFE_FREE(data);
 
     }
 
@@ -245,13 +353,29 @@ static void manager(int size, void *args, void (*partitioner)(void *args, void *
     ret_data.pkg = NULL;
     buff = pack(&ret_data, &packed_size);
     MPI_OPEN_SEND(buff, (size-1), packed_size);
-    if (buff) free(buff);
+    SAFE_FREE(buff);
 
     // Cleanup and return
     pqclose(qp);
     return;
 
 }
+
+/*
+static void *managerToken(void *args) {
+    int src;
+    MPI_Status st;
+    // Wait for message
+    MPI_TKN_RECV(&src, &st, sizeof(int));
+
+    // Set all_waiting
+    all_waiting = TRUE;
+
+    // Terminate
+    return NULL;
+
+}
+*/
 
 static void *part_wrapper(void *p) {
     PartBundle_t *pb = (PartBundle_t *)p;
@@ -285,14 +409,14 @@ static void synthesizer(void *acc, void (*synth)(void *, void *), void (*out)(vo
 
         // Run synthesis on manager data
         synth(package->pkg, acc);
-        if (package) free(package);
+        free(package);
 
     }
     // Everything has exited, do output
     out(acc);
 
     // Cleanup and return
-    if (buff) free(buff);
+    SAFE_FREE(buff);
     return;
 
 }

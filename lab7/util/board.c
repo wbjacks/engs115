@@ -192,6 +192,7 @@ void *unpackBoard(void *buf, size_t *size) {
 
     // Build board
     ret = initialize(n);
+    ret->n = n;
 
     // Get queen
     memcpy(&(ret->queen_count), pt, sizeof(int));
@@ -200,7 +201,7 @@ void *unpackBoard(void *buf, size_t *size) {
     // Get board
     for (i = 0; i < n; i++) {
         memcpy(ret->board[i], pt, n*sizeof(int));
-        pt += sizeof(n*sizeof(int));
+        pt += n*sizeof(int);
 
     }
     *size = pt - (char *)buf;

@@ -1,3 +1,11 @@
+// Defines
+#define MAX_IPV6_SIZE 46
+
+#define GET_HOST(str) do {if (gethostname(str, MAX_IPV6_SIZE) != 0) { \
+        fprintf(stderr, "Error in hostmap.c: Problem adding host.\n"); \
+        fprintf(stderr, "Error is: %s.\n", strerror(errno)); \
+        return -1;} } while(0);
+
 // Includes
 #include <stdlib.h>
 #include <stdio.h>
@@ -6,13 +14,6 @@
 #include <errno.h>
 #include "./hostmap.h"
 
-// Defines
-#define MAX_IPV6_SIZE 46
-
-#define GET_HOST(str) do {if (gethostname(str, MAX_IPV6_SIZE) != 0) { \
-        fprintf(stderr, "Error in hostmap.c: Problem adding host.\n"); \
-        fprintf(stderr, "Error is: %s.\n", strerror(errno)); \
-        return -1;} } while(0);
 
 // Structs
 struct __host_node {
@@ -55,7 +56,7 @@ void destroyMap(void *map) {
 
 int addCurrentHost(void *map) {
     ListHead_t *head = (ListHead_t *)map;
-    HostNode_t *host;
+    HostNode_t *host, *temp;
 
     // Check if host exists
     if (hostExists(map)) return TRUE;
@@ -63,14 +64,21 @@ int addCurrentHost(void *map) {
     // If it doesn't, create host
     host = (HostNode_t *)malloc(sizeof(HostNode_t));
     GET_HOST(host->address);
+    host->val = 0;
 
     // Insert new host
-    if (head->last) head->last->next = host;
-    host->prev = head->last;
-    host->next = NULL;
-    head->last = host;
-    if (!head->first) head->first = host;
     head->num_nodes++;
+    // Check empty
+    if (head->first == NULL && head->last == NULL) {
+        head->first = host;
+        head->last = host;
+        return FALSE;
+
+    }
+    head->last->next = host;
+    temp = head->last;
+    head->last = host;
+    host->prev = temp;
 
     return FALSE;
 
@@ -116,14 +124,14 @@ int addValToHost(void *map, int val) {
 }
 
 int *getAllValues(void *map, size_t *ret_size) {
-    int *vals, *i_pt;
+    int *vals, i;
     HostNode_t *n_pt;
     ListHead_t *head = (ListHead_t *)map;
 
     // Build output array
     vals = (int *)malloc(head->num_nodes * sizeof(int));
-    for (n_pt = head->first, i_pt = vals; n_pt; n_pt = n_pt->next)
-        *i_pt++ = n_pt->val;
+    for (n_pt = head->first, i = 0; i < head->num_nodes; n_pt = n_pt->next, i++)
+        vals[i] = n_pt->val;
 
     *ret_size = head->num_nodes;
     return vals;

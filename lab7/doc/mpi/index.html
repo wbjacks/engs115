@@ -1,0 +1,83 @@
+<title>MPI</title>
+
+<h2>MPI -- Message Passing Interface</h2>
+
+MPI is a complicated assortment of several hundred C-routines that
+will let you write programs that run in parallel and communicate with
+each other.  Few completely understand all that it can do, but that's
+okay, because this class will only be using a few of the routines that
+are available.<p>
+
+
+<a name="Functions">
+<hr>
+<h3>MPI functions:</h3>
+Here is a list of all the functions you will need to use in this class:
+
+<dl>
+<dt><b>Basics</b>
+<dd> 
+ <a href="MPI_Init.html">MPI_Init</a> 
+ -- Initializing the MPI environment.<br>
+<a href="MPI_Finalize.html">MPI_Finalize</a> -- 
+    Closing up the MPI environment. <br>
+<a href="MPI_Comm_rank.html">MPI_Comm_rank</a> -- 
+    Getting the Rank of your process. <br>
+<a href="MPI_Comm_size.html">MPI_Comm_size</a> -- 
+    Getting the total number of machines. <p>
+<dt><b>Message Passing</b>
+<dd>
+ <a href="MPI_Send.html">MPI_Send</a> -- 
+    Sending data to another process.<br>
+ <a href="MPI_Recv.html">MPI_Recv</a> -- 
+    Receiving data from another process.<br>
+ <a href="MPI_Iprobe.html">MPI_Iprobe</a> -- 
+    Poll for a pending message.<br>
+ <a href="MPI_Bcast.html">MPI_Bcast</a> -- 
+    Broadcasting data to all processes.<br>
+ <a href="MPI_Reduce.html">MPI_Reduce</a> -- 
+    Combining data from all processes.<p>
+<dt><b>Timing</b>
+<dd> <a href="MPI_Barrier.html">MPI_Barrier</a> -- 
+    Synchronizing processes.<br>
+ <a href="MPI_Wtime.html">MPI_Wtime</a> -- 
+    Getting the time from a process.<p>
+</dl>
+
+
+<hr>
+<a name="hello"></a>
+<h3>Concurrent Hello World</h3>
+
+Here is a little demo program:<p>
+
+<pre>
+#include &lt;stdio.h&gt;
+#include &lt;mpi.h&gt;
+
+int main(int argc, char **argv)
+{
+   int node;
+
+   <a href="MPI_Init.html">MPI_Init</a>(&argc,&argv);
+   <a href="MPI_Comm_rank.html">MPI_Comm_rank</a>(MPI_COMM_WORLD, &node);
+
+   printf("Hello from Node %d\n",node);
+   fflush(stdout);
+
+   <a href="MPI_Finalize.html">MPI_Finalize</a>();
+   return 0;
+}
+</pre>
+
+All the program does is get the <i>rank</i> of the node it is running
+on, print it, and exit.<p>
+
+If, for example, you started your program by directing MPI to use ten
+nodes, then MPI would run your program <i>on all ten nodes
+simultaneously</i>.  MPI would assign each node a <i>rank</i> from
+zero to nine; a program can get its own rank with
+the <a href="MPI_Comm_rank.html">MPI_Comm_rank</a> function and decide
+how to operate based on that value.  This is how all parallel programs
+in the course will work.<p>
+

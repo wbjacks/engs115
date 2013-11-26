@@ -1,0 +1,50 @@
+<title>MPI Library Reference: MPI_Comm_rank</title>
+
+<h2>MPI_Comm_rank</h2>
+
+This function determines the process number of the calling process, and 
+returns it in its second argument.<p>
+
+<hr>
+
+<h3>Prototype:</h3>
+
+<b>MPI_Comm_rank(MPI_Comm comm, int *rank);</b><p>
+
+When an MPI program is run with N machines, an identical copy of the program 
+is started simultaneously on all of the N machines, numbered 0 through N-1.  
+This function lets any one of the processes find out which one it is.  (For 
+the process running on machine 0, rank will return as 0; For the process 
+running on machine 1, rank will return as 1, and so on.)<p>
+
+The first argument, the MPI_Comm thing, is more confusing.  For now, just 
+ignore it, and send in an "MPI_COMM_WORLD".<p>
+
+<hr>
+
+MPI_Comm_rank should be called fairly early in the program because the 
+information it returns (which machine the process is running on) is very 
+useful.  A parallel program accomplishes its task by splitting a job among 
+many machines.  Therefore, it makes sense that your process would need to know 
+fairly soon what machine it is so it can figure out what part of the problem 
+to work on.<p>
+
+Usually, in fact, the first three lines of your program will be as follows:<p>
+
+<pre>
+main(int argc, char **argv)
+{
+   int rank,total;
+
+   <a href="MPI_Init.html">MPI_Init</a>(&argc,&argv);
+   <a href="MPI_Comm_rank.html">MPI_Comm_rank</a>(MPI_COMM_WORLD, &rank);
+   <a href="MPI_Comm_size.html">MPI_Comm_size</a>(MPI_COMM_WORLD, &total);
+
+     /* Now main knows how many machines there are (total),
+           and which of those this instance of it 
+           is running on (rank).                         */
+     /* Continue with rest of main() below... */
+
+</pre>
+
+
